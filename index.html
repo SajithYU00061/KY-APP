@@ -402,14 +402,12 @@ function checkPin() {
     for (let i = 0; i < PIN_LENGTH; i++) {
       document.getElementById(`d${i}`).className = 'pin-dot filled';
     }
-    // Store auth in sessionStorage (clears when browser closes)
-    sessionStorage.setItem('kyAuth', JSON.stringify({
-      siteId: site.id,
-      siteName: site.name,
-      ts: Date.now()
-    }));
-    sessionStorage.setItem('kySite', siteId);
-    setTimeout(() => { window.location.href = 'app.html'; }, 300);
+    // Store auth in localStorage (reliable across page navigations on all browsers)
+    var authData = JSON.stringify({ siteId: site.id, siteName: site.name, ts: Date.now() });
+    try { localStorage.setItem('kyAuth', authData); } catch(e) {}
+    try { localStorage.setItem('kySite', siteId); } catch(e) {}
+    try { sessionStorage.setItem('kyAuth', authData); } catch(e) {}
+    setTimeout(function() { window.location.href = 'app.html'; }, 300);
 
   } else {
     // ❌ Wrong PIN
@@ -459,13 +457,16 @@ function lockKeypad(seconds) {
 }
 
 // ── Check existing auth (skip login if already authenticated) ─────
-const existingAuth = sessionStorage.getItem('kyAuth');
+var existingAuth = null;
+try { existingAuth = localStorage.getItem('kyAuth') || sessionStorage.getItem('kyAuth'); } catch(e) {}
 if (existingAuth) {
   try {
-    const auth = JSON.parse(existingAuth);
+    var auth = JSON.parse(existingAuth);
     // Session valid for 12 hours
-    if (Date.now() - auth.ts < 12 * 60 * 60 * 1000) {
+    if (auth && auth.ts && (Date.now() - auth.ts < 12 * 60 * 60 * 1000)) {
       window.location.href = 'app.html';
+    } else {
+      try { localStorage.removeItem('kyAuth'); } catch(e) {}
     }
   } catch(e) {}
 }
