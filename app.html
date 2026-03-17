@@ -708,20 +708,22 @@ const GOOGLE_SCRIPT_URL = https://script.google.com/macros/s/AKfycbyo7-pOC0ZK4h9
 
 // ─── AUTH CHECK ──────────────────────────────────────────────────
 (function checkAuth() {
-  const auth = sessionStorage.getItem('kyAuth');
+  var auth = null;
+  try { auth = localStorage.getItem('kyAuth') || sessionStorage.getItem('kyAuth'); } catch(e) {}
   if (!auth) { window.location.href = 'index.html'; return; }
   try {
-    const a = JSON.parse(auth);
-    if (Date.now() - a.ts > 12 * 60 * 60 * 1000) {
-      sessionStorage.removeItem('kyAuth');
+    var a = JSON.parse(auth);
+    if (!a || !a.ts || (Date.now() - a.ts > 12 * 60 * 60 * 1000)) {
+      try { localStorage.removeItem('kyAuth'); } catch(e) {}
       window.location.href = 'index.html';
     }
   } catch(e) { window.location.href = 'index.html'; }
 })();
 
 function getSiteInfo() {
-  try { return JSON.parse(sessionStorage.getItem('kyAuth')) || {}; }
-  catch(e) { return {}; }
+  var raw = null;
+  try { raw = localStorage.getItem('kyAuth') || sessionStorage.getItem('kyAuth'); } catch(e) {}
+  try { return JSON.parse(raw) || {}; } catch(e) { return {}; }
 }
 
 // ─── STORAGE ─────────────────────────────────────────────────────
@@ -1288,7 +1290,7 @@ function submitForm() {
       actions.innerHTML = `
         <button class="btn btn-download" onclick="exportCurrentRecord()">⬇️ Excelでダウンロード</button>
         <button class="btn-new" onclick="startNew()">📝 新しいKY活動を開始</button>
-        <button class="btn-new" onclick="window.location.href='index.html'" style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.2);color:#ef4444">
+        <button class="btn-new" onclick="try{localStorage.removeItem('kyAuth');}catch(e){}window.location.href='index.html'" style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.2);color:#ef4444">
           🔒 ログアウト
         </button>`;
     }
