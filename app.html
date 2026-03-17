@@ -703,7 +703,7 @@ function freshForm() {
 
 // ─── CONFIG ───────────────────────────────────────────────────────
 // Paste your Google Apps Script Web App URL here after deploying:
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyo7-pOC0ZK4h9sUrw3gIyL_AIWYSB5luVPsCaHZeQY1xpkghboXjvb_EebxksEyrCi/exec';
+const GOOGLE_SCRIPT_URL = https://script.google.com/macros/s/AKfycbyo7-pOC0ZK4h9sUrw3gIyL_AIWYSB5luVPsCaHZeQY1xpkghboXjvb_EebxksEyrCi/exec;
 // ──────────────────────────────────────────────────────────────────
 
 // ─── AUTH CHECK ──────────────────────────────────────────────────
@@ -758,62 +758,73 @@ function clearPendingQueue() {
 }
 
 // ─── GOOGLE SHEETS SYNC ──────────────────────────────────────────
-async function syncToGoogleSheets(records) {
-  if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('YOUR_GOOGLE')) return { ok: false, reason: 'not_configured' };
-  try {
-    const payload = Array.isArray(records) ? records : [records];
-    const res = await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' }, // GAS requires text/plain for CORS
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    return { ok: data.status === 'ok', data };
-  } catch(e) {
-    return { ok: false, reason: 'network_error', error: e.message };
+// Promise-based (no async/await) for full iOS Safari compatibility
+function syncToGoogleSheets(records) {
+  if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('YOUR_GOOGLE')) {
+    return Promise.resolve({ ok: false, reason: 'not_configured' });
   }
+  var payload = Array.isArray(records) ? records : [records];
+  return fetch(GOOGLE_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) { return { ok: data.status === 'ok', data: data }; })
+  .catch(function(e) { return { ok: false, reason: 'network_error', error: e.message }; });
 }
 
-async function submitAndSync(record) {
-  const site = getSiteInfo();
-  const fullRecord = { ...record, siteName: site.siteName || '' };
+function submitAndSync(record) {
+  var site = getSiteInfo();
+  var fullRecord = Object.assign({}, record, { siteName: site.siteName || '' });
 
   // Always save locally first
   saveRecord(fullRecord);
 
   // Try to sync online
   if (navigator.onLine) {
-    const result = await syncToGoogleSheets(fullRecord);
-    if (result.ok) {
-      // Also flush any pending offline queue
-      const pending = getPendingQueue();
-      if (pending.length > 0) {
-        const batchResult = await syncToGoogleSheets(pending);
-        if (batchResult.ok) clearPendingQueue();
+    return syncToGoogleSheets(fullRecord).then(function(result) {
+      if (result.ok) {
+        // Flush pending offline queue
+        var pending = getPendingQueue();
+        if (pending.length > 0) {
+          return syncToGoogleSheets(pending).then(function(batchResult) {
+            if (batchResult.ok) clearPendingQueue();
+            return { synced: true };
+          });
+        }
+        return { synced: true };
       }
-      return { synced: true };
-    }
+      // Sync failed — queue it
+      addToPendingQueue(fullRecord);
+      return { synced: false };
+    }).catch(function() {
+      addToPendingQueue(fullRecord);
+      return { synced: false };
+    });
   }
 
   // Offline — add to pending queue
   addToPendingQueue(fullRecord);
 
-  // Register background sync if supported
+  // Register background sync if supported (Android Chrome)
   if ('serviceWorker' in navigator && 'SyncManager' in window) {
-    const reg = await navigator.serviceWorker.ready;
-    try { await reg.sync.register('ky-sync'); } catch(e) {}
+    navigator.serviceWorker.ready.then(function(reg) {
+      try { reg.sync.register('ky-sync'); } catch(e) {}
+    }).catch(function() {});
   }
-  return { synced: false };
+  return Promise.resolve({ synced: false });
 }
 
 // Listen for SW sync signal
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('message', async e => {
+  navigator.serviceWorker.addEventListener('message', function(e) {
     if (e.data && e.data.type === 'SYNC_REQUESTED') {
-      const pending = getPendingQueue();
+      var pending = getPendingQueue();
       if (pending.length > 0 && navigator.onLine) {
-        const result = await syncToGoogleSheets(pending);
-        if (result.ok) clearPendingQueue();
+        syncToGoogleSheets(pending).then(function(result) {
+          if (result.ok) clearPendingQueue();
+        }).catch(function() {});
       }
     }
   });
@@ -1236,49 +1247,71 @@ function switchTab(t) {
 }
 
 // ─── SUBMIT ──────────────────────────────────────────────────────
-async function submitForm() {
+function submitForm() {
   collectCurrentStep();
 
-  // Show syncing state
+  // Show syncing state immediately
   document.getElementById('content').innerHTML = `
     <div class="success-screen">
       <div class="success-icon" id="submitIcon" style="animation:none">⏳</div>
       <div class="success-title" id="submitTitle">送信中...</div>
       <div class="success-sub" id="submitSub">データを保存しています...</div>
+      <div id="submitActions" style="padding:0 16px;display:flex;flex-direction:column;gap:10px;margin-top:16px"></div>
     </div>`;
   document.getElementById('footer').innerHTML = '';
   document.getElementById('progressWrap').style.display = 'none';
 
-  const result = await submitAndSync(form);
+  // Use promise chain instead of async/await for iOS Safari compatibility
+  submitAndSync(form).then(function(result) {
+    var icon    = document.getElementById('submitIcon');
+    var title   = document.getElementById('submitTitle');
+    var sub     = document.getElementById('submitSub');
+    var actions = document.getElementById('submitActions');
+    if (!icon || !title || !sub) return;
 
-  const icon  = document.getElementById('submitIcon');
-  const title = document.getElementById('submitTitle');
-  const sub   = document.getElementById('submitSub');
-  const pending = getPendingQueue();
+    var pending = getPendingQueue();
 
-  if (result.synced) {
-    icon.textContent  = '🎉';
-    icon.style.animation = '';
-    title.textContent = '提出完了！';
-    sub.innerHTML = 'KY活動表を記録し、<strong style="color:var(--safe)">Googleスプレッドシートに送信しました</strong>。';
-  } else {
-    icon.textContent  = '💾';
-    icon.style.animation = '';
-    title.textContent = 'オフライン保存';
-    sub.innerHTML = `端末に保存しました。<br><span style="color:var(--accent)">オンライン復帰時に自動送信されます（待機${pending.length}件）</span>`;
-  }
+    if (result && result.synced) {
+      icon.textContent  = '🎉';
+      icon.style.animation = '';
+      title.textContent = '提出完了！';
+      sub.innerHTML = 'KY活動表を記録し、<strong style="color:var(--safe)">Googleスプレッドシートに送信しました</strong>。';
+    } else {
+      icon.textContent  = '💾';
+      icon.style.animation = '';
+      title.textContent = 'オフライン保存';
+      sub.innerHTML = '端末に保存しました。<br><span style="color:var(--accent)">オンライン復帰時に自動送信されます（待機' + pending.length + '件）</span>';
+    }
 
-  document.getElementById('content').innerHTML += `
-    <div style="padding:0 16px;display:flex;flex-direction:column;gap:10px">
-      <button class="btn btn-download" onclick="exportCurrentRecord()">⬇️ Excelでダウンロード</button>
-      <button class="btn-new" onclick="startNew()">📝 新しいKY活動を開始</button>
-      <button class="btn-new" onclick="window.location.href='index.html'" style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.2);color:#ef4444">
-        🔒 ログアウト
-      </button>
-    </div>`;
+    // Safely append action buttons
+    if (actions) {
+      actions.innerHTML = `
+        <button class="btn btn-download" onclick="exportCurrentRecord()">⬇️ Excelでダウンロード</button>
+        <button class="btn-new" onclick="startNew()">📝 新しいKY活動を開始</button>
+        <button class="btn-new" onclick="window.location.href='index.html'" style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.2);color:#ef4444">
+          🔒 ログアウト
+        </button>`;
+    }
 
-  // Clear draft
-  localStorage.removeItem('kyDraft');
+    // Clear draft
+    try { localStorage.removeItem('kyDraft'); } catch(e) {}
+
+  }).catch(function(err) {
+    // Fallback if sync fails - still show success for local save
+    var icon  = document.getElementById('submitIcon');
+    var title = document.getElementById('submitTitle');
+    var sub   = document.getElementById('submitSub');
+    var actions = document.getElementById('submitActions');
+    if (icon)  { icon.textContent = '💾'; icon.style.animation = ''; }
+    if (title) title.textContent = '端末に保存しました';
+    if (sub)   sub.textContent = 'オフライン保存されました。';
+    if (actions) {
+      actions.innerHTML = `
+        <button class="btn btn-download" onclick="exportCurrentRecord()">⬇️ Excelでダウンロード</button>
+        <button class="btn-new" onclick="startNew()">📝 新しいKY活動を開始</button>`;
+    }
+    try { localStorage.removeItem('kyDraft'); } catch(e) {}
+  });
 }
 
 function exportCurrentRecord() {
@@ -1343,7 +1376,7 @@ function buildKYSheet(data) {
     const key = XLSX.utils.encode_cell(ref);
     const t = (val === null || val === undefined || val === '') ? 's'
              : (typeof val === 'number') ? 'n' : 's';
-    ws[key] = { v: val ?? '', t, s: style || {} };
+    ws[key] = { v: (val !== null && val !== undefined) ? val : '', t, s: style || {} };
   };
 
   // ── Row 1-4: Title ───────────────────────────────────────────
