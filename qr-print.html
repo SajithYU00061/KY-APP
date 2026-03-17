@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KY活動表 — QRコード印刷</title>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: #f0f4f8;
+  padding: 30px 20px;
+  min-height: 100vh;
+}
+.setup-panel {
+  max-width: 600px;
+  margin: 0 auto 30px;
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+.setup-panel h2 {
+  font-family: 'M PLUS Rounded 1c', sans-serif;
+  font-size: 18px;
+  color: #0f3460;
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase; }
+.field input {
+  width: 100%; padding: 11px 14px;
+  border: 1.5px solid #e2e8f0; border-radius: 10px;
+  font-size: 14px; font-family: inherit; outline: none;
+}
+.field input:focus { border-color: #1a56db; }
+.btn-gen {
+  background: linear-gradient(135deg, #0f3460, #1a56db);
+  color: white; border: none; padding: 14px 28px;
+  border-radius: 12px; font-size: 15px;
+  font-family: 'M PLUS Rounded 1c', sans-serif;
+  font-weight: 700; cursor: pointer; width: 100%;
+  margin-top: 4px;
+}
+.btn-gen:hover { opacity: 0.9; }
+
+/* Print cards */
+.cards-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+.qr-card {
+  background: white;
+  border-radius: 16px;
+  padding: 28px 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.qr-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 6px;
+  background: linear-gradient(90deg, #0f3460, #1a56db, #f59e0b);
+}
+.card-icon { font-size: 36px; margin-bottom: 8px; }
+.card-title {
+  font-family: 'M PLUS Rounded 1c', sans-serif;
+  font-size: 20px; font-weight: 900; color: #0f3460;
+  margin-bottom: 4px;
+}
+.card-subtitle { font-size: 11px; color: #94a3b8; margin-bottom: 16px; }
+.qr-wrap {
+  background: white;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+.site-name-badge {
+  background: #eff6ff;
+  color: #1a56db;
+  font-size: 12px; font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 20px;
+  margin-bottom: 8px;
+  max-width: 220px;
+  word-break: break-all;
+}
+.pin-hint {
+  font-size: 13px; color: #475569;
+  margin-bottom: 4px;
+}
+.pin-val {
+  font-family: 'M PLUS Rounded 1c', sans-serif;
+  font-size: 28px; font-weight: 900;
+  letter-spacing: 8px; color: #0f3460;
+  background: #f0f4f8;
+  padding: 8px 20px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+.url-text {
+  font-size: 10px; color: #94a3b8;
+  word-break: break-all;
+  margin-top: 8px;
+}
+.steps {
+  text-align: left;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 11px;
+  color: #475569;
+  line-height: 2;
+  width: 100%;
+  margin-top: 12px;
+}
+.steps strong { color: #0f3460; }
+
+/* Print btn */
+.print-bar {
+  max-width: 900px;
+  margin: 0 auto 20px;
+  display: flex; gap: 12px;
+}
+.btn-print {
+  background: #0f3460; color: white;
+  border: none; padding: 12px 24px;
+  border-radius: 12px; font-size: 14px;
+  font-family: 'M PLUS Rounded 1c', sans-serif;
+  font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+}
+.btn-print:hover { opacity: 0.9; }
+
+@media print {
+  body { background: white; padding: 0; }
+  .setup-panel, .print-bar { display: none !important; }
+  .cards-wrap { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .qr-card { box-shadow: none; border: 1px solid #e2e8f0; page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<div class="setup-panel">
+  <h2>⚙️ QRコード生成設定</h2>
+  <div class="field">
+    <label>アプリのURL（GitHub Pages URL）</label>
+    <input type="url" id="appUrl" placeholder="例: https://yourname.github.io/ky-app/"
+           value="">
+  </div>
+  <div id="siteFields"></div>
+  <button class="btn-gen" onclick="generateCards()">🔄 QRコードを生成する</button>
+</div>
+
+<div class="print-bar" id="printBar" style="display:none">
+  <button class="btn-print" onclick="window.print()">🖨️ 印刷する（現場掲示用）</button>
+</div>
+
+<div class="cards-wrap" id="cardsWrap"></div>
+
+<script>
+// Site list — should match your index.html SITES config
+const SITES_CONFIG = [
+  { id: 'site1', name: '林道南アルプス線（嘉助工区）', pin: '1234' },
+  { id: 'site2', name: '現場B — ○○工事',              pin: '5678' },
+  { id: 'site3', name: '現場C — △△工事',              pin: '9012' },
+];
+
+// Build site PIN fields
+const siteFields = document.getElementById('siteFields');
+SITES_CONFIG.forEach((s, i) => {
+  siteFields.innerHTML += `
+    <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:10px;align-items:end">
+      <div class="field" style="margin:0">
+        <label>現場 ${i+1} 名称</label>
+        <input type="text" id="siteName_${i}" value="${s.name}">
+      </div>
+      <div class="field" style="margin:0;width:90px">
+        <label>PIN</label>
+        <input type="text" id="sitePin_${i}" value="${s.pin}" maxlength="4" style="text-align:center;letter-spacing:4px;font-weight:700">
+      </div>
+    </div>`;
+});
+
+function generateCards() {
+  const baseUrl = document.getElementById('appUrl').value.trim().replace(/\/$/, '');
+  if (!baseUrl) { alert('URLを入力してください'); return; }
+
+  const wrap = document.getElementById('cardsWrap');
+  wrap.innerHTML = '';
+
+  SITES_CONFIG.forEach((s, i) => {
+    const name = document.getElementById(`siteName_${i}`).value || s.name;
+    const pin  = document.getElementById(`sitePin_${i}`).value  || s.pin;
+    const url  = `${baseUrl}/index.html`;
+
+    const card = document.createElement('div');
+    card.className = 'qr-card';
+    card.innerHTML = `
+      <div class="card-icon">⛑️</div>
+      <div class="card-title">KY活動表</div>
+      <div class="card-subtitle">危険予知活動 — 毎朝スキャン</div>
+      <div class="qr-wrap" id="qr_${i}"></div>
+      <div class="site-name-badge">📍 ${name}</div>
+      <div class="pin-hint">🔐 この現場のPIN番号</div>
+      <div class="pin-val">${pin}</div>
+      <div class="url-text">${url}</div>
+      <div class="steps">
+        <strong>使い方：</strong><br>
+        ① QRコードをスキャン<br>
+        ② 現場を選択してPINを入力<br>
+        ③ KY活動を記録して提出<br>
+        <strong>💡 ホーム画面に追加すると便利！</strong>
+      </div>`;
+    wrap.appendChild(card);
+
+    // Generate QR code
+    setTimeout(() => {
+      new QRCode(document.getElementById(`qr_${i}`), {
+        text: url,
+        width: 180,
+        height: 180,
+        colorDark: '#0f3460',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }, 50);
+  });
+
+  document.getElementById('printBar').style.display = 'flex';
+  setTimeout(() => wrap.scrollIntoView({ behavior: 'smooth' }), 300);
+}
+
+// Auto-generate if URL already filled
+window.addEventListener('load', () => {
+  const url = document.getElementById('appUrl').value;
+  if (url) generateCards();
+});
+</script>
+</body>
+</html>
