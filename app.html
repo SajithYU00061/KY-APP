@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KY活動表">
+<meta name="theme-color" content="#0f3460">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>KY活動表 — 危険予知</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --navy: #0f3460;
+    --navy-light: #16213e;
+    --blue: #1a56db;
+    --blue-mid: #3b82f6;
+    --blue-light: #dbeafe;
+    --accent: #f59e0b;
+    --accent-light: #fef3c7;
+    --danger: #ef4444;
+    --warn: #f97316;
+    --safe: #10b981;
+    --bg: #f0f4f8;
+    --card: #ffffff;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --radius: 16px;
+    --shadow: 0 2px 16px rgba(15,52,96,0.10);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #app {
+    width: 100%;
+    max-width: 480px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    position: relative;
+  }
+
+  /* ─── HEADER ─── */
+  .header {
+    background: linear-gradient(160deg, var(--navy) 0%, #1a3a6e 100%);
+    padding: 20px 20px 0;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -30px;
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -20px; left: 30px;
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: rgba(245,158,11,0.10);
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+    position: relative;
+  }
+  .header-icon {
+    font-size: 32px;
+    line-height: 1;
+  }
+  .header-title {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+  }
+  .header-sub {
+    font-size: 11px;
+    opacity: 0.65;
+    margin-top: 2px;
+    font-weight: 400;
+  }
+  .offline-badge {
+    margin-left: auto;
+    background: rgba(16,185,129,0.2);
+    border: 1px solid rgba(16,185,129,0.4);
+    color: #6ee7b7;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 700;
+  }
+  .offline-badge.offline {
+    background: rgba(239,68,68,0.2);
+    border-color: rgba(239,68,68,0.4);
+    color: #fca5a5;
+  }
+
+  /* ─── PROGRESS ─── */
+  .progress-wrap {
+    position: relative;
+    padding: 0 0 20px;
+  }
+  .progress-track {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .progress-seg {
+    flex: 1;
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.15);
+    transition: background 0.4s;
+  }
+  .progress-seg.done { background: var(--accent); }
+  .progress-seg.active { background: rgba(255,255,255,0.7); }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .step-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+  }
+  .step-count {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+  }
+
+  /* ─── CONTENT ─── */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 16px 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ─── CARDS ─── */
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    animation: fadeSlide 0.3s ease;
+  }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .card-accent { border-left: 4px solid var(--blue); }
+  .card-warn { border-left: 4px solid var(--warn); }
+  .card-danger { border-left: 4px solid var(--danger); }
+  .card-safe { border-left: 4px solid var(--safe); }
+
+  .card-title {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .card-title span { font-size: 16px; }
+
+  /* ─── FORM ELEMENTS ─── */
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  input[type=text], input[type=date], input[type=number], textarea, select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: 'Noto Sans JP', sans-serif;
+    color: var(--text);
+    background: #f8fafc;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--blue-mid);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+    background: #fff;
+  }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .row2 { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+
+  /* ─── SCORE BUTTONS ─── */
+  .score-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .score-btn {
+    padding: 12px 4px;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    background: #f8fafc;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.18s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .score-btn:active { transform: scale(0.95); }
+  .score-btn .score-val {
+    font-size: 20px;
+    font-weight: 900;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    color: var(--muted);
+  }
+  .score-btn .score-lbl {
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .score-btn.selected-low { border-color: var(--safe); background: #ecfdf5; }
+  .score-btn.selected-low .score-val { color: var(--safe); }
+  .score-btn.selected-mid { border-color: var(--warn); background: #fff7ed; }
+  .score-btn.selected-mid .score-val { color: var(--warn); }
+  .score-btn.selected-high { border-color: var(--danger); background: #fef2f2; }
+  .score-btn.selected-high .score-val { color: var(--danger); }
+
+  /* ─── RISK BADGE ─── */
+  .risk-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .risk-low { background: #ecfdf5; color: var(--safe); }
+  .risk-mid { background: #fff7ed; color: var(--warn); }
+  .risk-high { background: #fef2f2; color: var(--danger); }
+
+  /* ─── YES/NO BUTTONS ─── */
+  .yn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .yn-btn {
+    padding: 16px;
+    border-radius: 14px;
+    border: 2px solid var(--border);
+    background: #f8fafc;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 800;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    transition: all 0.18s;
+  }
+  .yn-btn:active { transform: scale(0.96); }
+  .yn-btn.yn-good { border-color: var(--safe); background: #ecfdf5; color: var(--safe); }
+  .yn-btn.yn-bad { border-color: var(--danger); background: #fef2f2; color: var(--danger); }
+
+  /* ─── HAZARD CARD ─── */
+  .hazard-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--border);
+    margin-bottom: 14px;
+    animation: fadeSlide 0.3s ease;
+    transition: border-color 0.3s;
+  }
+  .hazard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .hazard-num {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--navy);
+  }
+  .divider { height: 1px; background: var(--border); margin: 14px 0; }
+
+  /* ─── INFO BOX ─── */
+  .info-box {
+    background: var(--blue-light);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 11px;
+    color: var(--blue);
+    line-height: 1.7;
+    font-weight: 500;
+  }
+  .warn-box {
+    background: #fff7ed;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 11px;
+    color: var(--warn);
+    line-height: 1.7;
+    font-weight: 600;
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+  }
+
+  /* ─── SUMMARY ─── */
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+    gap: 12px;
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-key {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 80px;
+    text-transform: uppercase;
+  }
+  .summary-val { color: var(--text); flex: 1; text-align: right; word-break: break-all; }
+
+  /* ─── PARTICIPANT ─── */
+  .participant-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .participant-slot {
+    position: relative;
+  }
+  .participant-slot input {
+    padding-left: 32px;
+  }
+  .participant-icon {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    pointer-events: none;
+  }
+
+  /* ─── SUCCESS SCREEN ─── */
+  .success-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    text-align: center;
+    gap: 16px;
+    animation: fadeSlide 0.4s ease;
+  }
+  .success-icon {
+    font-size: 72px;
+    animation: pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes pop {
+    from { transform: scale(0.3); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .success-title {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--navy);
+  }
+  .success-sub { font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+  /* ─── FOOTER ─── */
+  .footer {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    display: flex;
+    gap: 10px;
+    z-index: 100;
+  }
+
+  /* ─── BUTTONS ─── */
+  .btn {
+    padding: 15px 0;
+    border-radius: 14px;
+    border: none;
+    font-size: 14px;
+    font-weight: 800;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    cursor: pointer;
+    transition: all 0.18s;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-back {
+    background: #f1f5f9;
+    color: var(--muted);
+    border: 1.5px solid var(--border);
+    flex: 0.7;
+  }
+  .btn-next {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
+    color: white;
+    box-shadow: 0 4px 16px rgba(26,86,219,0.35);
+  }
+  .btn-submit {
+    background: linear-gradient(135deg, #065f46 0%, var(--safe) 100%);
+    color: white;
+    box-shadow: 0 4px 16px rgba(16,185,129,0.35);
+  }
+  .btn-download {
+    background: linear-gradient(135deg, var(--navy) 0%, #2563eb 100%);
+    color: white;
+    box-shadow: 0 4px 16px rgba(15,52,96,0.35);
+    width: 100%;
+    padding: 16px;
+    border-radius: 14px;
+    font-size: 15px;
+    margin-top: 8px;
+  }
+  .btn-new {
+    background: #f1f5f9;
+    color: var(--navy);
+    border: 1.5px solid var(--border);
+    width: 100%;
+    padding: 16px;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 800;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    cursor: pointer;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.18s;
+  }
+  .btn-new:active { transform: scale(0.97); }
+
+  /* ─── RECORDS LIST ─── */
+  .records-panel {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    animation: fadeSlide 0.3s ease;
+  }
+  .record-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+  }
+  .record-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .record-date { font-size: 13px; font-weight: 700; color: var(--navy); }
+  .record-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .record-arrow { color: var(--muted); font-size: 16px; }
+
+  /* ─── TABS ─── */
+  .tabs {
+    display: flex;
+    background: rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 3px;
+    margin: 0 0 6px;
+    position: relative;
+  }
+  .tab {
+    flex: 1;
+    padding: 8px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.55);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+  }
+  .tab.active {
+    background: rgba(255,255,255,0.15);
+    color: white;
+  }
+
+  /* ─── FLOATING RECORD BUTTON ─── */
+  .fab {
+    position: fixed;
+    bottom: 90px;
+    right: calc(50% - 230px);
+    background: white;
+    border: none;
+    border-radius: 50px;
+    padding: 10px 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--navy);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    z-index: 50;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+  }
+  .fab:active { transform: scale(0.95); }
+
+  /* modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    display: flex; align-items: flex-end; justify-content: center;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    background: var(--card);
+    border-radius: 24px 24px 0 0;
+    padding: 24px 20px 36px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .modal-title {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--navy);
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal-close {
+    background: #f1f5f9;
+    border: none;
+    border-radius: 50%;
+    width: 32px; height: 32px;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+  }
+
+  @media (max-width: 400px) {
+    .participant-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-top">
+      <div class="header-icon">⛑️</div>
+      <div>
+        <div class="header-title">KY活動表</div>
+        <div class="header-sub">危険予知活動 — 毎朝の安全確認</div>
+      </div>
+      <div class="offline-badge" id="netBadge">● オンライン</div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" id="tabForm" onclick="switchTab('form')">📝 新規入力</div>
+      <div class="tab" id="tabRecords" onclick="switchTab('records')">📊 記録一覧</div>
+    </div>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-track" id="progressTrack"></div>
+      <div class="progress-label">
+        <div class="step-name" id="stepName"></div>
+        <div class="step-count" id="stepCount"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content" id="content"></div>
+
+  <div class="footer" id="footer"></div>
+</div>
+
+<!-- Records Modal -->
+<div class="modal-overlay" id="recordModal" style="display:none">
+  <div class="modal">
+    <div class="modal-title">
+      <span>📋 記録詳細</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modalContent"></div>
+    <button class="btn btn-download" onclick="exportSingleRecord()" style="margin-top:16px">
+      ⬇️ この記録をExcel出力
+    </button>
+  </div>
+</div>
+
+<script>
+// ─── CONSTANTS ────────────────────────────────────────────────────
+const STEPS = [
+  { name: "基本情報",    icon: "📋" },
+  { name: "作業内容",    icon: "🔨" },
+  { name: "危険予知",    icon: "⚠️" },
+  { name: "体調確認",    icon: "💪" },
+  { name: "参加者",      icon: "👷" },
+  { name: "確認・提出",  icon: "✅" },
+];
+const DAYS = ["日","月","火","水","木","金","土"];
+const SEV_LABELS = { 1:"軽傷", 3:"重傷", 5:"致命的" };
+const POS_LABELS = { 1:"あまりない", 3:"たまにある", 5:"よくある" };
+const CHECKS_DEF = [
+  { key:"condition",        label:"体調はいいか",     emoji:"💪" },
+  { key:"attire",           label:"服装はいいか",     emoji:"👔" },
+  { key:"ppe",              label:"保護具の所持",     emoji:"⛑️" },
+  { key:"workUnderstanding",label:"作業内容の把握",   emoji:"📋" },
+];
+
+// ─── STATE ───────────────────────────────────────────────────────
+let step = 0;
+let currentTab = 'form';
+let selectedModalRecord = null;
+let form = freshForm();
+
+function freshForm() {
+  const now = new Date();
+  return {
+    date: now.toISOString().slice(0,10),
+    dayOfWeek: DAYS[now.getDay()],
+    company: "(株)警備サービス輝",
+    leader: "",
+    supervisor: "",
+    workContent: "",
+    todayPoint: "",
+    hazards: [
+      { point:"", severity:null, possibility:null, countermeasure:"", reeval:null },
+      { point:"", severity:null, possibility:null, countermeasure:"", reeval:null },
+      { point:"", severity:null, possibility:null, countermeasure:"", reeval:null },
+    ],
+    checks: { condition:null, attire:null, ppe:null, workUnderstanding:null },
+    participants: ["","","","","",""],
+  };
+}
+
+// ─── CONFIG ───────────────────────────────────────────────────────
+// Paste your Google Apps Script Web App URL here after deploying:
+const GOOGLE_SCRIPT_URL = https://script.google.com/macros/s/AKfycbyo7-pOC0ZK4h9sUrw3gIyL_AIWYSB5luVPsCaHZeQY1xpkghboXjvb_EebxksEyrCi/exec;
+// ──────────────────────────────────────────────────────────────────
+
+// ─── AUTH CHECK ──────────────────────────────────────────────────
+(function checkAuth() {
+  const auth = sessionStorage.getItem('kyAuth');
+  if (!auth) { window.location.href = 'index.html'; return; }
+  try {
+    const a = JSON.parse(auth);
+    if (Date.now() - a.ts > 12 * 60 * 60 * 1000) {
+      sessionStorage.removeItem('kyAuth');
+      window.location.href = 'index.html';
+    }
+  } catch(e) { window.location.href = 'index.html'; }
+})();
+
+function getSiteInfo() {
+  try { return JSON.parse(sessionStorage.getItem('kyAuth')) || {}; }
+  catch(e) { return {}; }
+}
+
+// ─── STORAGE ─────────────────────────────────────────────────────
+function getRecords() {
+  try { return JSON.parse(localStorage.getItem('kyRecords') || '[]'); }
+  catch(e) { return []; }
+}
+function saveRecord(f) {
+  const records = getRecords();
+  const id = Date.now();
+  records.unshift({ id, ...f });
+  localStorage.setItem('kyRecords', JSON.stringify(records));
+  return id;
+}
+function saveDraft(f) {
+  localStorage.setItem('kyDraft', JSON.stringify(f));
+}
+function loadDraft() {
+  try { return JSON.parse(localStorage.getItem('kyDraft')); } catch(e) { return null; }
+}
+
+// ─── OFFLINE QUEUE ────────────────────────────────────────────────
+function getPendingQueue() {
+  try { return JSON.parse(localStorage.getItem('kyPending') || '[]'); }
+  catch(e) { return []; }
+}
+function addToPendingQueue(record) {
+  const q = getPendingQueue();
+  q.push(record);
+  localStorage.setItem('kyPending', JSON.stringify(q));
+}
+function clearPendingQueue() {
+  localStorage.removeItem('kyPending');
+}
+
+// ─── GOOGLE SHEETS SYNC ──────────────────────────────────────────
+async function syncToGoogleSheets(records) {
+  if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('YOUR_GOOGLE')) return { ok: false, reason: 'not_configured' };
+  try {
+    const payload = Array.isArray(records) ? records : [records];
+    const res = await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, // GAS requires text/plain for CORS
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    return { ok: data.status === 'ok', data };
+  } catch(e) {
+    return { ok: false, reason: 'network_error', error: e.message };
+  }
+}
+
+async function submitAndSync(record) {
+  const site = getSiteInfo();
+  const fullRecord = { ...record, siteName: site.siteName || '' };
+
+  // Always save locally first
+  saveRecord(fullRecord);
+
+  // Try to sync online
+  if (navigator.onLine) {
+    const result = await syncToGoogleSheets(fullRecord);
+    if (result.ok) {
+      // Also flush any pending offline queue
+      const pending = getPendingQueue();
+      if (pending.length > 0) {
+        const batchResult = await syncToGoogleSheets(pending);
+        if (batchResult.ok) clearPendingQueue();
+      }
+      return { synced: true };
+    }
+  }
+
+  // Offline — add to pending queue
+  addToPendingQueue(fullRecord);
+
+  // Register background sync if supported
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    const reg = await navigator.serviceWorker.ready;
+    try { await reg.sync.register('ky-sync'); } catch(e) {}
+  }
+  return { synced: false };
+}
+
+// Listen for SW sync signal
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', async e => {
+    if (e.data && e.data.type === 'SYNC_REQUESTED') {
+      const pending = getPendingQueue();
+      if (pending.length > 0 && navigator.onLine) {
+        const result = await syncToGoogleSheets(pending);
+        if (result.ok) clearPendingQueue();
+      }
+    }
+  });
+}
+
+// ─── NETWORK STATUS ──────────────────────────────────────────────
+function updateNetStatus() {
+  const badge = document.getElementById('netBadge');
+  if (navigator.onLine) {
+    badge.textContent = '● オンライン';
+    badge.className = 'offline-badge';
+  } else {
+    badge.textContent = '● オフライン';
+    badge.className = 'offline-badge offline';
+  }
+}
+window.addEventListener('online', updateNetStatus);
+window.addEventListener('offline', updateNetStatus);
+updateNetStatus();
+
+// ─── RISK HELPERS ────────────────────────────────────────────────
+function riskScore(a, b) { return (a && b) ? a * b : null; }
+function riskTag(score) {
+  if (!score) return null;
+  if (score >= 15) return { label:"重 ⚠️", cls:"risk-high", cardCls:"card-danger" };
+  if (score >= 9)  return { label:"中 ▲", cls:"risk-mid",  cardCls:"card-warn"   };
+  return               { label:"低 ✓", cls:"risk-low",  cardCls:"card-safe"  };
+}
+function scoreClass(val) {
+  if (val === 1) return 'selected-low';
+  if (val === 3) return 'selected-mid';
+  if (val === 5) return 'selected-high';
+  return '';
+}
+
+// ─── RENDER ENGINE ───────────────────────────────────────────────
+function render() {
+  renderProgress();
+  renderContent();
+  renderFooter();
+  saveDraft(form);
+}
+
+function renderProgress() {
+  const track = document.getElementById('progressTrack');
+  const nameEl = document.getElementById('stepName');
+  const countEl = document.getElementById('stepCount');
+  const pw = document.getElementById('progressWrap');
+
+  if (currentTab === 'records') {
+    pw.style.display = 'none'; return;
+  }
+  pw.style.display = 'block';
+  track.innerHTML = STEPS.map((s, i) => {
+    const cls = i < step ? 'done' : i === step ? 'active' : '';
+    return `<div class="progress-seg ${cls}"></div>`;
+  }).join('');
+  nameEl.textContent = STEPS[step].icon + ' ' + STEPS[step].name;
+  countEl.textContent = `${step + 1} / ${STEPS.length}`;
+}
+
+function renderContent() {
+  const el = document.getElementById('content');
+  if (currentTab === 'records') { el.innerHTML = renderRecordsTab(); renderFooter(); return; }
+  el.innerHTML = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4, renderStep5][step]();
+  attachStepListeners();
+}
+
+function renderFooter() {
+  const el = document.getElementById('footer');
+  if (currentTab === 'records') { el.innerHTML = ''; return; }
+  if (step === 5) {
+    el.innerHTML = `
+      <button class="btn btn-back" onclick="goBack()">← 戻る</button>
+      <button class="btn btn-submit" onclick="submitForm()">✅ 提出する</button>`;
+    return;
+  }
+  el.innerHTML = `
+    ${step > 0 ? '<button class="btn btn-back" onclick="goBack()">← 戻る</button>' : ''}
+    <button class="btn btn-next" onclick="goNext()">次へ →</button>`;
+}
+
+// ─── STEP RENDERERS ───────────────────────────────────────────────
+function renderStep0() {
+  return `
+  <div class="card card-accent">
+    <div class="card-title"><span>📅</span> 日付・現場情報</div>
+    <div class="field row2">
+      <div>
+        <label>日付</label>
+        <input type="date" id="f_date" value="${form.date}">
+      </div>
+      <div style="width:70px">
+        <label>曜日</label>
+        <select id="f_day">${DAYS.map(d=>`<option ${form.dayOfWeek===d?'selected':''}>${d}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="field">
+      <label>会社名</label>
+      <input type="text" id="f_company" value="${esc(form.company)}" placeholder="会社名">
+    </div>
+    <div class="field">
+      <label>リーダー名</label>
+      <input type="text" id="f_leader" value="${esc(form.leader)}" placeholder="リーダーの名前">
+    </div>
+    <div class="field">
+      <label>確認者</label>
+      <input type="text" id="f_supervisor" value="${esc(form.supervisor)}" placeholder="確認者名">
+    </div>
+  </div>`;
+}
+
+function renderStep1() {
+  return `
+  <div class="card card-accent">
+    <div class="card-title"><span>🔨</span> 作業内容</div>
+    <div class="field">
+      <label>今日の作業内容</label>
+      <textarea id="f_workContent" placeholder="今日の作業内容を具体的に入力してください...">${esc(form.workContent)}</textarea>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span>💡</span> 今日のワンポイント</div>
+    <div class="field">
+      <textarea id="f_todayPoint" placeholder="安全のポイントやリーダーからの一言を入力..." style="min-height:70px">${esc(form.todayPoint)}</textarea>
+    </div>
+  </div>`;
+}
+
+function renderStep2() {
+  const infoBox = `<div class="info-box" style="margin-bottom:14px">
+    <strong>📐 評価基準</strong><br>
+    重篤度（A）× 可能性（B）= ★危険度<br>
+    危険度 <strong>15〜25：重</strong>　<strong>9：中</strong>　<strong>1〜5：低</strong><br>
+    危険度15以上は対策後に再評価してください
+  </div>`;
+  const hazardCards = form.hazards.map((h, i) => {
+    const score = riskScore(h.severity, h.possibility);
+    const tag = riskTag(score);
+    const needsReeval = score && score >= 15;
+    const borderColor = tag ? (tag.cls.includes('high') ? '#ef4444' : tag.cls.includes('mid') ? '#f97316' : '#10b981') : '#e2e8f0';
+    return `
+    <div class="hazard-card" id="hcard_${i}" style="border-left-color:${borderColor}">
+      <div class="hazard-header">
+        <div class="hazard-num">⚠️ 危険ポイント ${i+1}</div>
+        ${tag && score ? `<span class="risk-badge ${tag.cls}">危険度 ${score} [${tag.label}]</span>` : ''}
+      </div>
+      <div class="field">
+        <label>どのような危険がありますか？</label>
+        <textarea id="h_point_${i}" placeholder="具体的な危険を記入..." style="min-height:70px">${esc(h.point)}</textarea>
+      </div>
+      <label>🔴 重篤度 (A) — 怪我の深刻さ</label>
+      <div class="score-group" style="margin-bottom:14px">
+        ${[1,3,5].map(v=>`
+          <button class="score-btn ${h.severity===v?scoreClass(v):''}" onclick="setHazard(${i},'severity',${v})">
+            <div class="score-val">${v}</div>
+            <div class="score-lbl">${SEV_LABELS[v]}</div>
+          </button>`).join('')}
+      </div>
+      <label>🟡 可能性 (B) — 発生の頻度</label>
+      <div class="score-group" style="margin-bottom:14px">
+        ${[1,3,5].map(v=>`
+          <button class="score-btn ${h.possibility===v?scoreClass(v):''}" onclick="setHazard(${i},'possibility',${v})">
+            <div class="score-val">${v}</div>
+            <div class="score-lbl">${POS_LABELS[v]}</div>
+          </button>`).join('')}
+      </div>
+      <div class="field">
+        <label>🛡️ 私たちはこうする！（対策）</label>
+        <textarea id="h_counter_${i}" placeholder="具体的な安全対策を記入..." style="min-height:70px">${esc(h.countermeasure)}</textarea>
+      </div>
+      ${needsReeval ? `
+      <div class="warn-box" style="margin-bottom:10px">⚠️ 危険度が15以上のため対策後の再評価が必要です</div>
+      <div class="field">
+        <label>★ 再評価スコア (A×B の再計算)</label>
+        <input type="number" id="h_reeval_${i}" min="1" max="25" placeholder="例：3" value="${h.reeval||''}">
+      </div>` : ''}
+    </div>`;
+  }).join('');
+  return infoBox + hazardCards;
+}
+
+function renderStep3() {
+  return `
+  <div class="info-box" style="margin-bottom:14px">
+    ○ 良い　×悪い — ×の場合はリーダーに報告し、対応しなければ作業に従事できません
+  </div>
+  ${CHECKS_DEF.map(c => `
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-title"><span>${c.emoji}</span> ${c.label}</div>
+    <div class="yn-group">
+      <button class="yn-btn ${form.checks[c.key]==='good'?'yn-good':''}" onclick="setCheck('${c.key}','good')">○ 良い</button>
+      <button class="yn-btn ${form.checks[c.key]==='bad'?'yn-bad':''}" onclick="setCheck('${c.key}','bad')">× 悪い</button>
+    </div>
+  </div>`).join('')}`;
+}
+
+function renderStep4() {
+  return `
+  <div class="card card-accent" style="margin-bottom:14px">
+    <div class="card-title"><span>👷</span> 参加者サイン</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+      参加者全員の名前を入力してください。<br>
+      実際の現場では自筆サインも必要です。
+    </p>
+    <div class="participant-grid">
+      ${form.participants.map((p, i) => `
+      <div class="participant-slot">
+        <span class="participant-icon">👤</span>
+        <input type="text" id="p_${i}" value="${esc(p)}" placeholder="参加者 ${i+1}">
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function renderStep5() {
+  const activeP = form.participants.filter(Boolean);
+  const hazardSummaries = form.hazards.filter(h => h.point).map((h, i) => {
+    const score = riskScore(h.severity, h.possibility);
+    const tag = riskTag(score);
+    return `
+    <div class="hazard-card" style="margin-bottom:10px;${tag?'border-left-color:'+(tag.cls.includes('high')?'#ef4444':tag.cls.includes('mid')?'#f97316':'#10b981'):''}">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:6px">危険ポイント ${i+1}</div>
+      <div style="font-size:13px;margin-bottom:8px">${esc(h.point)}</div>
+      ${score ? `<span class="risk-badge ${tag.cls}" style="font-size:11px">危険度 ${score} [${tag.label}]</span>` : ''}
+      ${h.countermeasure ? `<div style="font-size:12px;color:var(--muted);margin-top:8px">対策: ${esc(h.countermeasure)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-title"><span>📋</span> 基本情報確認</div>
+    ${row('日付', form.date + '（' + form.dayOfWeek + '）')}
+    ${row('会社', form.company)}
+    ${row('リーダー', form.leader || '—')}
+    ${row('確認者', form.supervisor || '—')}
+    ${row('作業内容', form.workContent || '—')}
+    ${row('ワンポイント', form.todayPoint || '—')}
+  </div>
+  ${hazardSummaries}
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-title"><span>✅</span> 体調確認</div>
+    ${CHECKS_DEF.map(c => {
+      const v = form.checks[c.key];
+      const color = v === 'good' ? 'var(--safe)' : v === 'bad' ? 'var(--danger)' : 'var(--muted)';
+      const label = v === 'good' ? '○ 良い' : v === 'bad' ? '× 悪い' : '未回答';
+      return `<div class="summary-row"><span class="summary-key">${c.label}</span><span style="color:${color};font-weight:700">${label}</span></div>`;
+    }).join('')}
+  </div>
+  ${activeP.length ? `
+  <div class="card">
+    <div class="card-title"><span>👷</span> 参加者 (${activeP.length}名)</div>
+    ${activeP.map(p => `<div class="summary-row"><span>👤 ${esc(p)}</span></div>`).join('')}
+  </div>` : ''}`;
+}
+
+function row(k, v) {
+  return `<div class="summary-row"><span class="summary-key">${k}</span><span class="summary-val">${esc(v)}</span></div>`;
+}
+
+// ─── RECORDS TAB ─────────────────────────────────────────────────
+function renderRecordsTab() {
+  const records = getRecords();
+  if (!records.length) {
+    return `<div class="card" style="text-align:center;padding:40px 20px">
+      <div style="font-size:48px;margin-bottom:12px">📭</div>
+      <div style="font-weight:700;color:var(--muted)">記録がまだありません</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">KY活動を入力して提出すると<br>ここに記録されます</div>
+    </div>`;
+  }
+  return `
+  <button class="btn btn-download" onclick="exportAllRecords()" style="margin-bottom:14px">
+    ⬇️ 全記録をExcel出力（${records.length}件）
+  </button>
+  <div class="records-panel">
+    ${records.map(r => `
+    <div class="record-item" onclick="openModal(${r.id})">
+      <div>
+        <div class="record-date">📅 ${r.date}（${r.dayOfWeek}）</div>
+        <div class="record-meta">👷 ${r.leader||'—'}　参加者: ${r.participants.filter(Boolean).length}名　
+          危険ポイント: ${r.hazards.filter(h=>h.point).length}件</div>
+      </div>
+      <div class="record-arrow">›</div>
+    </div>`).join('')}
+  </div>`;
+}
+
+// ─── MODAL ───────────────────────────────────────────────────────
+function openModal(id) {
+  const records = getRecords();
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  selectedModalRecord = r;
+  const mc = document.getElementById('modalContent');
+  mc.innerHTML = buildRecordDetail(r);
+  document.getElementById('recordModal').style.display = 'flex';
+}
+function closeModal() {
+  document.getElementById('recordModal').style.display = 'none';
+  selectedModalRecord = null;
+}
+function buildRecordDetail(r) {
+  const rows = [
+    ['日付', r.date + '（' + (r.dayOfWeek||'') + '）'],
+    ['会社', r.company], ['リーダー', r.leader], ['確認者', r.supervisor],
+    ['作業内容', r.workContent], ['ワンポイント', r.todayPoint],
+  ];
+  return `
+    <div style="margin-bottom:14px">
+      ${rows.map(([k,v]) => `<div class="summary-row"><span class="summary-key">${k}</span><span class="summary-val">${esc(v||'—')}</span></div>`).join('')}
+    </div>
+    ${r.hazards.filter(h=>h.point).map((h,i) => {
+      const s = riskScore(h.severity, h.possibility);
+      const tag = riskTag(s);
+      return `<div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:8px">
+        <div style="font-weight:700;font-size:12px;margin-bottom:6px">危険ポイント ${i+1}</div>
+        <div style="font-size:13px;margin-bottom:6px">${esc(h.point)}</div>
+        ${s ? `<span class="risk-badge ${tag.cls}" style="font-size:11px">危険度 ${s} [${tag.label}]</span>` : ''}
+        ${h.countermeasure ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">対策: ${esc(h.countermeasure)}</div>` : ''}
+      </div>`;
+    }).join('')}`;
+}
+
+function exportSingleRecord() {
+  if (selectedModalRecord) exportToXLSX([selectedModalRecord]);
+}
+
+// ─── LISTENERS ───────────────────────────────────────────────────
+function attachStepListeners() {
+  const bind = (id, key) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', e => { form[key] = e.target.value; saveDraft(form); });
+  };
+  bind('f_date', 'date'); bind('f_day', 'dayOfWeek');
+  bind('f_company', 'company'); bind('f_leader', 'leader');
+  bind('f_supervisor', 'supervisor'); bind('f_workContent', 'workContent');
+  bind('f_todayPoint', 'todayPoint');
+  form.hazards.forEach((_, i) => {
+    const pt = document.getElementById(`h_point_${i}`);
+    const ct = document.getElementById(`h_counter_${i}`);
+    const rv = document.getElementById(`h_reeval_${i}`);
+    if (pt) pt.addEventListener('input', e => { form.hazards[i].point = e.target.value; saveDraft(form); });
+    if (ct) ct.addEventListener('input', e => { form.hazards[i].countermeasure = e.target.value; saveDraft(form); });
+    if (rv) rv.addEventListener('input', e => { form.hazards[i].reeval = parseInt(e.target.value)||null; saveDraft(form); });
+  });
+  form.participants.forEach((_, i) => {
+    const el = document.getElementById(`p_${i}`);
+    if (el) el.addEventListener('input', e => { form.participants[i] = e.target.value; saveDraft(form); });
+  });
+}
+
+function setHazard(i, key, val) {
+  form.hazards[i][key] = (form.hazards[i][key] === val) ? null : val;
+  // preserve textarea values before re-render
+  form.hazards.forEach((h, idx) => {
+    const pt = document.getElementById(`h_point_${idx}`);
+    const ct = document.getElementById(`h_counter_${idx}`);
+    if (pt) h.point = pt.value;
+    if (ct) h.countermeasure = ct.value;
+  });
+  render();
+}
+function setCheck(key, val) {
+  form.checks[key] = (form.checks[key] === val) ? null : val;
+  render();
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────
+function collectCurrentStep() {
+  if (step === 0) {
+    const d = v('f_date'), day = v('f_day'), co = v('f_company'),
+          le = v('f_leader'), su = v('f_supervisor');
+    if (d) form.date = d; if (day) form.dayOfWeek = day;
+    if (co !== null) form.company = co;
+    if (le !== null) form.leader = le;
+    if (su !== null) form.supervisor = su;
+  }
+  if (step === 1) {
+    const wc = v('f_workContent'), tp = v('f_todayPoint');
+    if (wc !== null) form.workContent = wc;
+    if (tp !== null) form.todayPoint = tp;
+  }
+  if (step === 2) {
+    form.hazards.forEach((h, i) => {
+      const pt = v(`h_point_${i}`), ct = v(`h_counter_${i}`), rv = v(`h_reeval_${i}`);
+      if (pt !== null) h.point = pt;
+      if (ct !== null) h.countermeasure = ct;
+      if (rv !== null) h.reeval = parseInt(rv) || null;
+    });
+  }
+  if (step === 4) {
+    form.participants.forEach((_, i) => {
+      const pv = v(`p_${i}`);
+      if (pv !== null) form.participants[i] = pv;
+    });
+  }
+}
+function v(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : null;
+}
+function goNext() {
+  collectCurrentStep();
+  if (step < STEPS.length - 1) { step++; render(); scrollTop(); }
+}
+function goBack() {
+  collectCurrentStep();
+  if (step > 0) { step--; render(); scrollTop(); }
+}
+function scrollTop() {
+  document.getElementById('content').scrollTop = 0;
+}
+
+function switchTab(t) {
+  currentTab = t;
+  document.getElementById('tabForm').className = 'tab' + (t==='form'?' active':'');
+  document.getElementById('tabRecords').className = 'tab' + (t==='records'?' active':'');
+  renderProgress();
+  renderContent();
+}
+
+// ─── SUBMIT ──────────────────────────────────────────────────────
+async function submitForm() {
+  collectCurrentStep();
+
+  // Show syncing state
+  document.getElementById('content').innerHTML = `
+    <div class="success-screen">
+      <div class="success-icon" id="submitIcon" style="animation:none">⏳</div>
+      <div class="success-title" id="submitTitle">送信中...</div>
+      <div class="success-sub" id="submitSub">データを保存しています...</div>
+    </div>`;
+  document.getElementById('footer').innerHTML = '';
+  document.getElementById('progressWrap').style.display = 'none';
+
+  const result = await submitAndSync(form);
+
+  const icon  = document.getElementById('submitIcon');
+  const title = document.getElementById('submitTitle');
+  const sub   = document.getElementById('submitSub');
+  const pending = getPendingQueue();
+
+  if (result.synced) {
+    icon.textContent  = '🎉';
+    icon.style.animation = '';
+    title.textContent = '提出完了！';
+    sub.innerHTML = 'KY活動表を記録し、<strong style="color:var(--safe)">Googleスプレッドシートに送信しました</strong>。';
+  } else {
+    icon.textContent  = '💾';
+    icon.style.animation = '';
+    title.textContent = 'オフライン保存';
+    sub.innerHTML = `端末に保存しました。<br><span style="color:var(--accent)">オンライン復帰時に自動送信されます（待機${pending.length}件）</span>`;
+  }
+
+  document.getElementById('content').innerHTML += `
+    <div style="padding:0 16px;display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-download" onclick="exportCurrentRecord()">⬇️ Excelでダウンロード</button>
+      <button class="btn-new" onclick="startNew()">📝 新しいKY活動を開始</button>
+      <button class="btn-new" onclick="window.location.href='index.html'" style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.2);color:#ef4444">
+        🔒 ログアウト
+      </button>
+    </div>`;
+
+  // Clear draft
+  localStorage.removeItem('kyDraft');
+}
+
+function exportCurrentRecord() {
+  const records = getRecords();
+  if (records.length) exportToXLSX([records[0]]);
+}
+
+function startNew() {
+  form = freshForm();
+  step = 0;
+  document.getElementById('progressWrap').style.display = 'block';
+  render();
+}
+
+// ─── EXCEL EXPORT — exact original format ────────────────────────
+
+// Convert "A1" → {r:0, c:0}  (0-based)
+function cellRef(addr) {
+  const m = addr.match(/^([A-Z]+)(\d+)$/);
+  const col = m[1].split('').reduce((acc,ch) => acc*26 + ch.charCodeAt(0)-64, 0) - 1;
+  return { r: parseInt(m[2]) - 1, c: col };
+}
+
+function makeCell(ws, addr, value, styleHint) {
+  const ref = cellRef(addr);
+  const key = XLSX.utils.encode_cell(ref);
+  const t = (typeof value === 'number') ? 'n' : 's';
+  ws[key] = { v: value, t, s: styleHint || {} };
+}
+
+function addMerge(ws, tl, br) {
+  if (!ws['!merges']) ws['!merges'] = [];
+  ws['!merges'].push({ s: cellRef(tl), e: cellRef(br) });
+}
+
+// Column letter from 1-based index
+function colLetter(n) {
+  let s = '';
+  while (n > 0) { s = String.fromCharCode(64 + (n % 26 || 26)) + s; n = Math.floor((n-1)/26); }
+  return s;
+}
+
+function buildKYSheet(data) {
+  const ws = {};
+
+  // Sheet range: A1:BE52
+  ws['!ref'] = 'A1:BE52';
+
+  // Row heights: all 20.1, row 52 = 18
+  ws['!rows'] = [];
+  for (let i = 0; i < 52; i++) ws['!rows'].push({ hpt: i === 51 ? 18 : 20.1 });
+
+  // Column width: A=4.375, others default
+  ws['!cols'] = [{ wpx: 33 }]; // Col A narrow
+
+  const merges = [];
+  const addM = (tl, br) => merges.push({ s: cellRef(tl), e: cellRef(br) });
+
+  // Helper to set cell
+  const C = (addr, val, style) => {
+    const ref = cellRef(addr);
+    const key = XLSX.utils.encode_cell(ref);
+    const t = (val === null || val === undefined || val === '') ? 's'
+             : (typeof val === 'number') ? 'n' : 's';
+    ws[key] = { v: val ?? '', t, s: style || {} };
+  };
+
+  // ── Row 1-4: Title ───────────────────────────────────────────
+  const d = data.date || '';
+  let titleStr = '  　　月　　　日（　　）の危険予知活動表';
+  if (d) {
+    const parts = d.split('-');
+    if (parts.length === 3) {
+      const m = parseInt(parts[1]), dy = parseInt(parts[2]);
+      titleStr = `  　${m}月　　　${dy}日（${data.dayOfWeek||''}）の危険予知活動表`;
+    }
+  }
+  addM('A1','AM4');
+  C('A1', titleStr, { font:{name:'MS PGothic',sz:48}, alignment:{horizontal:'center',vertical:'center'} });
+
+  addM('AN1','BE2');
+  C('AN1', data.projectName || '林道南アルプス線（嘉助工区）改良工事（明許）',
+    { font:{name:'MS PGothic',sz:19}, alignment:{horizontal:'center',vertical:'center'} });
+
+  addM('AN3','BE4');
+  C('AN3', data.parentCompany || '湯澤工業株式会社',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+
+  // ── Row 5-6: Company / Leader / Supervisor ───────────────────
+  addM('A5','F6');  C('A5', '会社名',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+  addM('G5','U6');  C('G5', data.company||'',
+    { font:{name:'MS PGothic',sz:28}, alignment:{horizontal:'center',vertical:'center'} });
+  addM('V5','AA6'); C('V5', 'リーダー名',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+  addM('AB5','AM6'); C('AB5', data.leader||'',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+  addM('AN5','AR6'); C('AN5', '確認者',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+  addM('AS5','BE6'); C('AS5', data.supervisor||'',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+
+  // ── Row 7-8: Work content ────────────────────────────────────
+  addM('A7','F8');  C('A7', '作業内容',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+  addM('G7','BE8'); C('G7', data.workContent||'',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'left',vertical:'center',wrapText:true} });
+
+  // ── Row 9-12: Hazard table header ────────────────────────────
+  addM('A9','S12');
+  C('A9', '危険のポイント\n(どのような危険がありますか？)',
+    { font:{name:'MS PGothic',sz:26}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+  addM('T9','Y12');
+  C('T9', '重篤度\n(Ａ)\n○をつける',
+    { font:{name:'MS PGothic',sz:18}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+  addM('Z9','AE12');
+  C('Z9', '可能性\n(Ｂ)\n○をつける',
+    { font:{name:'MS PGothic',sz:18}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+  addM('AF9','AI12');
+  C('AF9', '★危険度\n(Ａ)×(Ｂ)\n数値記入',
+    { font:{name:'MS PGothic',sz:18}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+  addM('AJ9','BA12');
+  C('AJ9', '私たちはこうする！\n(具体的にできる対策を考える)',
+    { font:{name:'MS PGothic',sz:26}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+  addM('BB9','BE12');
+  C('BB9', '★再評価\n(Ａ）×(Ｂ）\n数値記入',
+    { font:{name:'MS PGothic',sz:18}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+
+  // ── Hazard rows ───────────────────────────────────────────────
+  const hazards = data.hazards || [{},{},{}];
+  const rowStarts = [13, 17, 21];
+  const sevCols   = [{l:'T',v:1},{l:'V',v:3},{l:'X',v:5}];
+  const posCols   = [{l:'Z',v:1},{l:'AB',v:3},{l:'AD',v:5}];
+
+  rowStarts.forEach((rs, idx) => {
+    const re = rs + 3;
+    const h  = hazards[idx] || {};
+    const sev = h.severity, pos = h.possibility;
+    const score = (sev && pos) ? sev * pos : null;
+
+    // Hazard point text — sz:20 matches original data cells
+    addM(`A${rs}`, `S${re}`);
+    C(`A${rs}`, h.point||'',
+      { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'left',vertical:'center',wrapText:true} });
+
+    // Severity buttons — sz:24 matches original (T13,V13,X13 = size 24)
+    sevCols.forEach(({l, v}) => {
+      const colIdx = l.split('').reduce((a,c)=>a*26+c.charCodeAt(0)-64,0);
+      const nextL  = colLetter(colIdx + 1);
+      addM(`${l}${rs}`, `${nextL}${re}`);
+      const isSelected = sev === v;
+      C(`${l}${rs}`, isSelected ? `（${v}）` : v,
+        { font:{name:'MS PGothic',sz:24,bold:isSelected},
+          alignment:{horizontal:'center',vertical:'center'} });
+    });
+
+    // Possibility buttons — sz:24 matches original (Z13,AB13,AD13 = size 24)
+    posCols.forEach(({l, v}) => {
+      const colIdx = l.split('').reduce((a,c)=>a*26+c.charCodeAt(0)-64,0);
+      const nextL  = colLetter(colIdx + 1);
+      addM(`${l}${rs}`, `${nextL}${re}`);
+      const isSelected = pos === v;
+      C(`${l}${rs}`, isSelected ? `（${v}）` : v,
+        { font:{name:'MS PGothic',sz:24,bold:isSelected},
+          alignment:{horizontal:'center',vertical:'center'} });
+    });
+
+    // Risk score — sz:24 consistent with score columns
+    addM(`AF${rs}`, `AI${re}`);
+    C(`AF${rs}`, score,
+      { font:{name:'MS PGothic',sz:24,bold:true}, alignment:{horizontal:'center',vertical:'center'} });
+
+    // Countermeasure — sz:20 matches original data cells
+    addM(`AJ${rs}`, `BA${re}`);
+    C(`AJ${rs}`, h.countermeasure||'',
+      { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'left',vertical:'center',wrapText:true} });
+
+    // Re-evaluation — sz:24 consistent with score columns
+    addM(`BB${rs}`, `BE${re}`);
+    C(`BB${rs}`, h.reeval||null,
+      { font:{name:'MS PGothic',sz:24,bold:true}, alignment:{horizontal:'center',vertical:'center'} });
+  });
+
+  // ── Row 25-27: Today's one-point ─────────────────────────────
+  addM('A25','S27');
+  C('A25', '今日のワンポイント',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+  addM('T25','AI27');
+  C('T25', data.todayPoint||'',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'left',vertical:'center',wrapText:true} });
+  addM('AJ25','BE27');
+  C('AJ25', '');
+
+  // ── Row 28-31: Scoring legend ─────────────────────────────────
+  addM('A28','BE31');
+  C('A28',
+    '(Ａ）怪我の重篤度　：　致命的5、重傷3、軽傷1　　　(Ｂ)怪我の可能性　：　よくある5、たまにある3、あまりない1　　　　★危険度(リスク)　：　15～25重、9中、1～5低\n※　危険度が15（重）以上の場合は、対策を考え実践したらどれだけ危険度が減少するかを再評価欄に計算して記入してください。',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+
+  // ── Row 32-39: Participant signatures ─────────────────────────
+  addM('A32','G39');
+  C('A32', '自筆サイン\n参加者',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+
+  const sigStartCols = [8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50];
+  const participants = data.participants || [];
+  sigStartCols.forEach((colN, i) => {
+    const l1 = colLetter(colN), l2 = colLetter(colN+1);
+    addM(`${l1}32`, `${l2}39`);
+    C(`${l1}32`, participants[i]||'',
+      { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+  });
+
+  // AZ32:BE51 — check/sign legend
+  addM('AZ32','BE51');
+  C('AZ32', '　良い○　　悪い×\n\n×の場合はリーダーに報告し、対応しなければ作業に従事できません　　　　\n',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+
+  // ── Row 40-51: Health checks ──────────────────────────────────
+  const checkRows = [
+    {rs:40,re:42,label:'体調はいいか',   key:'condition'},
+    {rs:43,re:45,label:'服装はいいか',   key:'attire'},
+    {rs:46,re:48,label:'保護具の所持',   key:'ppe'},
+    {rs:49,re:51,label:'作業内容の把握', key:'workUnderstanding'},
+  ];
+  const checks = data.checks || {};
+
+  checkRows.forEach(({rs, re, label, key}) => {
+    addM(`A${rs}`,`G${re}`);
+    C(`A${rs}`, label,
+      { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+
+    const val = checks[key];
+    const display = val === 'good' ? '○' : val === 'bad' ? '×' : '';
+    const color   = val === 'good' ? '0070C0' : val === 'bad' ? 'FF0000' : '000000';
+
+    sigStartCols.forEach(colN => {
+      const l1 = colLetter(colN), l2 = colLetter(colN+1);
+      addM(`${l1}${rs}`, `${l2}${re}`);
+      C(`${l1}${rs}`, display,
+        { font:{name:'MS PGothic',sz:20,bold:true,color:{rgb:color}},
+          alignment:{horizontal:'center',vertical:'center'} });
+    });
+  });
+
+  // ── Row 52: bottom border row ─────────────────────────────────
+  addM('A52','BE52');
+  C('A52', '');
+
+  ws['!merges'] = merges;
+  return ws;
+}
+
+function exportToXLSX(records) {
+  const wb = XLSX.utils.book_new();
+
+  records.forEach((r, idx) => {
+    const ws = buildKYSheet(r);
+    const dateStr  = (r.date || '').replace(/-/g,'');
+    const leader   = (r.leader || '記録').replace(/[\/\\?*\[\]:]/g,'');
+    let sheetName  = `${dateStr}_${leader}`.slice(0, 31);
+    // Ensure unique
+    const used = wb.SheetNames || [];
+    let base = sheetName, n = 1;
+    while (used.includes(sheetName)) { sheetName = `${base}_${n++}`.slice(0,31); }
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  const fileName = records.length === 1
+    ? `KY活動表_${records[0].date||'記録'}.xlsx`
+    : `KY活動表_集計_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+}
+
+function exportAllRecords() {
+  const records = getRecords();
+  if (!records.length) { alert('記録がありません'); return; }
+  exportToXLSX(records);
+}
+
+// ─── ESCAPE ──────────────────────────────────────────────────────
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── SERVICE WORKER ───────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js')
+    .then(reg => console.log('SW registered:', reg.scope))
+    .catch(err => console.log('SW registration failed:', err));
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────
+(function init() {
+  const draft = loadDraft();
+  if (draft) {
+    // Merge draft carefully
+    form = { ...freshForm(), ...draft };
+    form.hazards = (draft.hazards || []).map(h => ({ ...{point:'',severity:null,possibility:null,countermeasure:'',reeval:null}, ...h }));
+    form.checks = { ...freshForm().checks, ...(draft.checks || {}) };
+    form.participants = draft.participants || freshForm().participants;
+  }
+  render();
+})();
+</script>
+</body>
+</html>
