@@ -1,0 +1,1984 @@
+<!DOCTYPE html>
+<html lang="ja" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="google" content="notranslate">
+<meta http-equiv="Content-Language" content="ja">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KY活動表">
+<meta name="theme-color" content="#0f3460">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>KY活動表 — 危険予知</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800;900&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --navy: #0f3460;
+    --navy-light: #16213e;
+    --blue: #1a56db;
+    --blue-mid: #3b82f6;
+    --blue-light: #dbeafe;
+    --accent: #f59e0b;
+    --accent-light: #fef3c7;
+    --danger: #ef4444;
+    --warn: #f97316;
+    --safe: #10b981;
+    --bg: #f0f4f8;
+    --card: #ffffff;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --radius: 16px;
+    --shadow: 0 2px 16px rgba(15,52,96,0.10);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #app {
+    width: 100%;
+    max-width: 480px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    position: relative;
+  }
+
+  /* ─── HEADER ─── */
+  .header {
+    background: linear-gradient(160deg, var(--navy) 0%, #1a3a6e 100%);
+    padding: 20px 20px 0;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -30px;
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -20px; left: 30px;
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: rgba(245,158,11,0.10);
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+    position: relative;
+  }
+  .header-icon {
+    font-size: 32px;
+    line-height: 1;
+  }
+  .header-title {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+  }
+  .header-sub {
+    font-size: 11px;
+    opacity: 0.65;
+    margin-top: 2px;
+    font-weight: 400;
+  }
+  .offline-badge {
+    margin-left: auto;
+    background: rgba(16,185,129,0.2);
+    border: 1px solid rgba(16,185,129,0.4);
+    color: #6ee7b7;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 700;
+  }
+  .offline-badge.offline {
+    background: rgba(239,68,68,0.2);
+    border-color: rgba(239,68,68,0.4);
+    color: #fca5a5;
+  }
+
+  /* ─── PROGRESS ─── */
+  .progress-wrap {
+    position: relative;
+    padding: 0 0 20px;
+  }
+  .progress-track {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .progress-seg {
+    flex: 1;
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.15);
+    transition: background 0.4s;
+  }
+  .progress-seg.done { background: var(--accent); }
+  .progress-seg.active { background: rgba(255,255,255,0.7); }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .step-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+  }
+  .step-count {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+  }
+
+  /* ─── CONTENT ─── */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 16px 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ─── CARDS ─── */
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    animation: fadeSlide 0.3s ease;
+  }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .card-accent { border-left: 4px solid var(--blue); }
+  .card-warn { border-left: 4px solid var(--warn); }
+  .card-danger { border-left: 4px solid var(--danger); }
+  .card-safe { border-left: 4px solid var(--safe); }
+
+  .card-title {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .card-title span { font-size: 16px; }
+
+  /* ─── FORM ELEMENTS ─── */
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  input[type=text], input[type=date], input[type=number], textarea, select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: 'Noto Sans JP', sans-serif;
+    color: var(--text);
+    background: #f8fafc;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--blue-mid);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+    background: #fff;
+  }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .row2 { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+
+  /* ─── SCORE BUTTONS ─── */
+  .score-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .score-btn {
+    padding: 12px 4px;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    background: #f8fafc;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.18s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .score-btn:active { transform: scale(0.95); }
+  .score-btn .score-val {
+    font-size: 20px;
+    font-weight: 900;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    color: var(--muted);
+  }
+  .score-btn .score-lbl {
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .score-btn.selected-low { border-color: var(--safe); background: #ecfdf5; }
+  .score-btn.selected-low .score-val { color: var(--safe); }
+  .score-btn.selected-mid { border-color: var(--warn); background: #fff7ed; }
+  .score-btn.selected-mid .score-val { color: var(--warn); }
+  .score-btn.selected-high { border-color: var(--danger); background: #fef2f2; }
+  .score-btn.selected-high .score-val { color: var(--danger); }
+
+  /* ─── RISK BADGE ─── */
+  .risk-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .risk-low { background: #ecfdf5; color: var(--safe); }
+  .risk-mid { background: #fff7ed; color: var(--warn); }
+  .risk-high { background: #fef2f2; color: var(--danger); }
+
+  /* ─── YES/NO BUTTONS ─── */
+  .yn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .yn-btn {
+    padding: 16px;
+    border-radius: 14px;
+    border: 2px solid var(--border);
+    background: #f8fafc;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 800;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    transition: all 0.18s;
+  }
+  .yn-btn:active { transform: scale(0.96); }
+  .yn-btn.yn-good { border-color: var(--safe); background: #ecfdf5; color: var(--safe); }
+  .yn-btn.yn-bad { border-color: var(--danger); background: #fef2f2; color: var(--danger); }
+
+  /* ─── HAZARD CARD ─── */
+  .hazard-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--border);
+    margin-bottom: 14px;
+    animation: fadeSlide 0.3s ease;
+    transition: border-color 0.3s;
+  }
+  .hazard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .hazard-num {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--navy);
+  }
+  .divider { height: 1px; background: var(--border); margin: 14px 0; }
+
+  /* ─── INFO BOX ─── */
+  .info-box {
+    background: var(--blue-light);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 11px;
+    color: var(--blue);
+    line-height: 1.7;
+    font-weight: 500;
+  }
+  .warn-box {
+    background: #fff7ed;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 11px;
+    color: var(--warn);
+    line-height: 1.7;
+    font-weight: 600;
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+  }
+
+  /* ─── SUMMARY ─── */
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+    gap: 12px;
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-key {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 80px;
+    text-transform: uppercase;
+  }
+  .summary-val { color: var(--text); flex: 1; text-align: right; word-break: break-all; }
+
+  /* ─── PARTICIPANT ─── */
+  .participant-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .participant-slot {
+    position: relative;
+  }
+  .participant-slot input {
+    padding-left: 32px;
+  }
+  .participant-icon {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    pointer-events: none;
+  }
+
+  /* ─── SUCCESS SCREEN ─── */
+  .success-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    text-align: center;
+    gap: 16px;
+    animation: fadeSlide 0.4s ease;
+  }
+  .success-icon {
+    font-size: 72px;
+    animation: pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes pop {
+    from { transform: scale(0.3); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .success-title {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--navy);
+  }
+  .success-sub { font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+  /* ─── FOOTER ─── */
+  .footer {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    display: flex;
+    gap: 10px;
+    z-index: 100;
+  }
+
+  /* ─── BUTTONS ─── */
+  .btn {
+    padding: 15px 0;
+    border-radius: 14px;
+    border: none;
+    font-size: 14px;
+    font-weight: 800;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    cursor: pointer;
+    transition: all 0.18s;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-back {
+    background: #f1f5f9;
+    color: var(--muted);
+    border: 1.5px solid var(--border);
+    flex: 0.7;
+  }
+  .btn-next {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
+    color: white;
+    box-shadow: 0 4px 16px rgba(26,86,219,0.35);
+  }
+  .btn-submit {
+    background: linear-gradient(135deg, #065f46 0%, var(--safe) 100%);
+    color: white;
+    box-shadow: 0 4px 16px rgba(16,185,129,0.35);
+  }
+  .btn-download {
+    background: linear-gradient(135deg, var(--navy) 0%, #2563eb 100%);
+    color: white;
+    box-shadow: 0 4px 16px rgba(15,52,96,0.35);
+    width: 100%;
+    padding: 16px;
+    border-radius: 14px;
+    font-size: 15px;
+    margin-top: 8px;
+  }
+  .btn-new {
+    background: #f1f5f9;
+    color: var(--navy);
+    border: 1.5px solid var(--border);
+    width: 100%;
+    padding: 16px;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 800;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    cursor: pointer;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.18s;
+  }
+  .btn-new:active { transform: scale(0.97); }
+
+  /* ─── RECORDS LIST ─── */
+  .records-panel {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    animation: fadeSlide 0.3s ease;
+  }
+  .record-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+  }
+  .record-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .record-date { font-size: 13px; font-weight: 700; color: var(--navy); }
+  .record-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .record-arrow { color: var(--muted); font-size: 16px; }
+
+  /* ─── TABS ─── */
+  .tabs {
+    display: flex;
+    background: rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 3px;
+    margin: 0 0 6px;
+    position: relative;
+  }
+  .tab {
+    flex: 1;
+    padding: 8px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.55);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+  }
+  .tab.active {
+    background: rgba(255,255,255,0.15);
+    color: white;
+  }
+
+  /* ─── FLOATING RECORD BUTTON ─── */
+  .fab {
+    position: fixed;
+    bottom: 90px;
+    right: calc(50% - 230px);
+    background: white;
+    border: none;
+    border-radius: 50px;
+    padding: 10px 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--navy);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    z-index: 50;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+  }
+  .fab:active { transform: scale(0.95); }
+
+  /* modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    display: flex; align-items: flex-end; justify-content: center;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    background: var(--card);
+    border-radius: 24px 24px 0 0;
+    padding: 24px 20px 36px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .modal-title {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--navy);
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal-close {
+    background: #f1f5f9;
+    border: none;
+    border-radius: 50%;
+    width: 32px; height: 32px;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+  }
+
+  /* ─── AI CHAT ─── */
+  .ai-wrap { display:flex; flex-direction:column; gap:12px; height:calc(100vh - 200px); }
+  .ai-chat-header {
+    background:var(--card); border-radius:var(--radius);
+    padding:14px 16px; box-shadow:var(--shadow);
+    display:flex; align-items:center; gap:10px;
+  }
+  .ai-chat-header-icon { font-size:28px; }
+  .ai-chat-header-title { font-size:14px; font-weight:800; color:var(--navy); }
+  .ai-chat-header-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+
+  .ai-chips { display:flex; flex-wrap:wrap; gap:6px; padding:4px 0; }
+  .ai-chip {
+    padding:5px 12px; border-radius:20px; font-size:11px; font-weight:700;
+    border:1.5px solid var(--border); background:#f8fafc; color:var(--muted);
+    cursor:pointer; transition:all .15s; font-family:'Noto Sans JP',sans-serif;
+  }
+  .ai-chip:hover { border-color:var(--blue-mid); color:var(--blue); background:var(--blue-light); }
+  .ai-chip:active { transform:scale(.94); }
+
+  .ai-messages {
+    flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px;
+    background:var(--card); border-radius:var(--radius); padding:14px;
+    box-shadow:var(--shadow); min-height:200px; max-height:380px;
+  }
+  .ai-msg { display:flex; gap:8px; animation:fadeSlide .25s ease; }
+  .ai-msg.user { flex-direction:row-reverse; }
+  .ai-msg-avatar {
+    width:30px; height:30px; border-radius:50%; display:flex;
+    align-items:center; justify-content:center; font-size:14px;
+    flex-shrink:0; margin-top:2px;
+  }
+  .ai-msg.bot .ai-msg-avatar  { background:linear-gradient(135deg,var(--navy),var(--blue)); }
+  .ai-msg.user .ai-msg-avatar { background:linear-gradient(135deg,#065f46,var(--safe)); }
+  .ai-msg-bubble {
+    max-width:82%; padding:10px 13px; border-radius:16px;
+    font-size:13px; line-height:1.65; color:var(--text);
+  }
+  .ai-msg.bot  .ai-msg-bubble { background:#f1f5f9; border-bottom-left-radius:4px; }
+  .ai-msg.user .ai-msg-bubble {
+    background:linear-gradient(135deg,var(--navy),var(--blue));
+    color:#fff; border-bottom-right-radius:4px;
+  }
+  .ai-msg-bubble strong { color:var(--danger); }
+  .ai-msg-bubble .safe  { color:var(--safe); font-weight:700; }
+  .ai-msg-bubble .warn  { color:var(--warn); font-weight:700; }
+
+  .ai-msg-bubble ul { margin:6px 0 0 14px; padding:0; }
+  .ai-msg-bubble li { margin-bottom:4px; }
+
+  .ai-typing {
+    display:flex; gap:4px; align-items:center; padding:8px 4px;
+  }
+  .ai-typing span {
+    width:7px; height:7px; border-radius:50%; background:var(--muted);
+    animation:typingDot 1.2s ease infinite;
+  }
+  .ai-typing span:nth-child(2) { animation-delay:.2s; }
+  .ai-typing span:nth-child(3) { animation-delay:.4s; }
+  @keyframes typingDot {
+    0%,60%,100% { opacity:.3; transform:scale(.8); }
+    30% { opacity:1; transform:scale(1.1); }
+  }
+
+  .ai-fill-banner {
+    background:linear-gradient(135deg,#ecfdf5,#d1fae5);
+    border:1.5px solid #6ee7b7; border-radius:12px;
+    padding:10px 14px; display:flex; align-items:center; gap:10px;
+    cursor:pointer; transition:all .15s;
+  }
+  .ai-fill-banner:active { transform:scale(.98); }
+  .ai-fill-banner-text { flex:1; font-size:12px; font-weight:700; color:#065f46; }
+  .ai-fill-banner-btn {
+    padding:7px 13px; border-radius:10px; border:none;
+    background:#059669; color:#fff; font-size:12px; font-weight:700;
+    cursor:pointer; font-family:'Noto Sans JP',sans-serif; white-space:nowrap;
+  }
+
+  .ai-input-row {
+    display:flex; gap:8px; background:var(--card);
+    border-radius:var(--radius); padding:10px; box-shadow:var(--shadow);
+  }
+  .ai-input-row input {
+    flex:1; padding:10px 13px; border:1.5px solid var(--border);
+    border-radius:10px; font-size:14px; font-family:inherit;
+    color:var(--text); background:#f8fafc; outline:none; transition:border-color .2s;
+  }
+  .ai-input-row input:focus { border-color:var(--blue-mid); background:#fff; }
+  .ai-send-btn {
+    padding:10px 16px; border-radius:10px; border:none;
+    background:linear-gradient(135deg,var(--navy),var(--blue));
+    color:#fff; font-size:18px; cursor:pointer; transition:all .15s;
+    box-shadow:0 3px 10px rgba(26,86,219,.3); flex-shrink:0;
+  }
+  .ai-send-btn:active { transform:scale(.93); }
+  .ai-send-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+  .ai-step2-btn {
+    display:inline-flex; align-items:center; gap:4px;
+    padding:5px 11px; border-radius:20px; border:none;
+    background:var(--blue-light); color:var(--blue);
+    font-size:11px; font-weight:700; cursor:pointer;
+    font-family:'Noto Sans JP',sans-serif; margin-left:8px; transition:all .15s;
+  }
+  .ai-step2-btn:active { transform:scale(.95); }
+
+    @media (max-width: 400px) {
+    .participant-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-top">
+      <div class="header-icon">⛑️</div>
+      <div>
+        <div class="header-title">KY活動表</div>
+        <div class="header-sub">危険予知活動 — 毎朝の安全確認</div>
+      </div>
+      <div class="offline-badge" id="netBadge">● オンライン</div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" id="tabForm" onclick="switchTab('form')">📝 新規入力</div>
+      <div class="tab" id="tabRecords" onclick="switchTab('records')">📊 記録一覧</div>
+      <div class="tab" id="tabAI" onclick="switchTab('ai')">🤖 安全AI</div>
+    </div>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-track" id="progressTrack"></div>
+      <div class="progress-label">
+        <div class="step-name" id="stepName"></div>
+        <div class="step-count" id="stepCount"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content" id="content"></div>
+
+  <div class="footer" id="footer"></div>
+</div>
+
+<!-- Records Modal -->
+<div class="modal-overlay" id="recordModal" style="display:none">
+  <div class="modal">
+    <div class="modal-title">
+      <span>📋 記録詳細</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modalContent"></div>
+    <button class="btn btn-download" onclick="exportSingleRecord()" style="margin-top:16px">
+      ⬇️ この記録をExcel出力
+    </button>
+  </div>
+</div>
+
+<script>
+// ─── CONSTANTS ────────────────────────────────────────────────────
+const STEPS = [
+  { name: "基本情報",    icon: "📋" },
+  { name: "作業内容",    icon: "🔨" },
+  { name: "危険予知",    icon: "⚠️" },
+  { name: "体調確認",    icon: "💪" },
+  { name: "参加者",      icon: "👷" },
+  { name: "確認・提出",  icon: "✅" },
+];
+const DAYS = ["日","月","火","水","木","金","土"];
+const SEV_LABELS = { 1:"軽傷", 3:"重傷", 5:"致命的" };
+const POS_LABELS = { 1:"あまりない", 3:"たまにある", 5:"よくある" };
+const CHECKS_DEF = [
+  { key:"condition",        label:"体調はいいか",     emoji:"💪" },
+  { key:"attire",           label:"服装はいいか",     emoji:"👔" },
+  { key:"ppe",              label:"保護具の所持",     emoji:"⛑️" },
+  { key:"workUnderstanding",label:"作業内容の把握",   emoji:"📋" },
+];
+
+// ─── STATE ───────────────────────────────────────────────────────
+let step = 0;
+let currentTab = 'form';
+let selectedModalRecord = null;
+let form = freshForm();
+
+function freshForm() {
+  const now = new Date();
+  return {
+    date: now.toISOString().slice(0,10),
+    dayOfWeek: DAYS[now.getDay()],
+    company: "(株)警備サービス輝",
+    leader: "",
+    supervisor: "",
+    workContent: "",
+    todayPoint: "",
+    hazards: [
+      { point:"", severity:null, possibility:null, countermeasure:"", reeval:null },
+      { point:"", severity:null, possibility:null, countermeasure:"", reeval:null },
+      { point:"", severity:null, possibility:null, countermeasure:"", reeval:null },
+    ],
+    checks: { condition:null, attire:null, ppe:null, workUnderstanding:null },
+    participants: ["","","","","",""],
+  };
+}
+
+// ─── CONFIG ───────────────────────────────────────────────────────
+// Paste your Google Apps Script Web App URL here after deploying:
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyo7-pOC0ZK4h9sUrw3gIyL_AIWYSB5luVPsCaHZeQY1xpkghboXjvb_EebxksEyrCi/exec';
+// ──────────────────────────────────────────────────────────────────
+
+// ─── AUTH CHECK ──────────────────────────────────────────────────
+(function checkAuth() {
+  var auth = null;
+  try { auth = localStorage.getItem('kyAuth') || sessionStorage.getItem('kyAuth'); } catch(e) {}
+  if (!auth) { window.location.href = 'index.html'; return; }
+  try {
+    var a = JSON.parse(auth);
+    if (!a || !a.ts || (Date.now() - a.ts > 12 * 60 * 60 * 1000)) {
+      try { localStorage.removeItem('kyAuth'); } catch(e) {}
+      window.location.href = 'index.html';
+    }
+  } catch(e) { window.location.href = 'index.html'; }
+})();
+
+function getSiteInfo() {
+  var raw = null;
+  try { raw = localStorage.getItem('kyAuth') || sessionStorage.getItem('kyAuth'); } catch(e) {}
+  try { return JSON.parse(raw) || {}; } catch(e) { return {}; }
+}
+
+// ─── STORAGE ─────────────────────────────────────────────────────
+function getRecords() {
+  try { return JSON.parse(localStorage.getItem('kyRecords') || '[]'); }
+  catch(e) { return []; }
+}
+function saveRecord(f) {
+  const records = getRecords();
+  const id = Date.now();
+  records.unshift({ id, ...f });
+  localStorage.setItem('kyRecords', JSON.stringify(records));
+  return id;
+}
+function saveDraft(f) {
+  localStorage.setItem('kyDraft', JSON.stringify(f));
+}
+function loadDraft() {
+  try { return JSON.parse(localStorage.getItem('kyDraft')); } catch(e) { return null; }
+}
+
+// ─── OFFLINE QUEUE ────────────────────────────────────────────────
+function getPendingQueue() {
+  try { return JSON.parse(localStorage.getItem('kyPending') || '[]'); }
+  catch(e) { return []; }
+}
+function addToPendingQueue(record) {
+  const q = getPendingQueue();
+  q.push(record);
+  localStorage.setItem('kyPending', JSON.stringify(q));
+}
+function clearPendingQueue() {
+  localStorage.removeItem('kyPending');
+}
+
+// ─── GOOGLE SHEETS SYNC ──────────────────────────────────────────
+// Promise-based (no async/await) for full iOS Safari compatibility
+function syncToGoogleSheets(records) {
+  if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('YOUR_GOOGLE')) {
+    return Promise.resolve({ ok: false, reason: 'not_configured' });
+  }
+  var payload = Array.isArray(records) ? records : [records];
+  return fetch(GOOGLE_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) { return { ok: data.status === 'ok', data: data }; })
+  .catch(function(e) { return { ok: false, reason: 'network_error', error: e.message }; });
+}
+
+function submitAndSync(record) {
+  var site = getSiteInfo();
+  var fullRecord = Object.assign({}, record, { siteName: site.siteName || '' });
+
+  // Always save locally first
+  saveRecord(fullRecord);
+
+  // Try to sync online
+  if (navigator.onLine) {
+    return syncToGoogleSheets(fullRecord).then(function(result) {
+      if (result.ok) {
+        // Flush pending offline queue
+        var pending = getPendingQueue();
+        if (pending.length > 0) {
+          return syncToGoogleSheets(pending).then(function(batchResult) {
+            if (batchResult.ok) clearPendingQueue();
+            return { synced: true };
+          });
+        }
+        return { synced: true };
+      }
+      // Sync failed — queue it
+      addToPendingQueue(fullRecord);
+      return { synced: false };
+    }).catch(function() {
+      addToPendingQueue(fullRecord);
+      return { synced: false };
+    });
+  }
+
+  // Offline — add to pending queue
+  addToPendingQueue(fullRecord);
+
+  // Register background sync if supported (Android Chrome)
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    navigator.serviceWorker.ready.then(function(reg) {
+      try { reg.sync.register('ky-sync'); } catch(e) {}
+    }).catch(function() {});
+  }
+  return Promise.resolve({ synced: false });
+}
+
+// Listen for SW sync signal
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'SYNC_REQUESTED') {
+      var pending = getPendingQueue();
+      if (pending.length > 0 && navigator.onLine) {
+        syncToGoogleSheets(pending).then(function(result) {
+          if (result.ok) clearPendingQueue();
+        }).catch(function() {});
+      }
+    }
+  });
+}
+
+// ─── NETWORK STATUS ──────────────────────────────────────────────
+function updateNetStatus() {
+  const badge = document.getElementById('netBadge');
+  if (navigator.onLine) {
+    badge.textContent = '● オンライン';
+    badge.className = 'offline-badge';
+  } else {
+    badge.textContent = '● オフライン';
+    badge.className = 'offline-badge offline';
+  }
+}
+window.addEventListener('online', updateNetStatus);
+window.addEventListener('offline', updateNetStatus);
+updateNetStatus();
+
+// ─── RISK HELPERS ────────────────────────────────────────────────
+function riskScore(a, b) { return (a && b) ? a * b : null; }
+function riskTag(score) {
+  if (!score) return null;
+  if (score >= 15) return { label:"重 ⚠️", cls:"risk-high", cardCls:"card-danger" };
+  if (score >= 9)  return { label:"中 ▲", cls:"risk-mid",  cardCls:"card-warn"   };
+  return               { label:"低 ✓", cls:"risk-low",  cardCls:"card-safe"  };
+}
+function scoreClass(val) {
+  if (val === 1) return 'selected-low';
+  if (val === 3) return 'selected-mid';
+  if (val === 5) return 'selected-high';
+  return '';
+}
+
+// ─── RENDER ENGINE ───────────────────────────────────────────────
+function render() {
+  try {
+    renderProgress();
+    renderContent();
+    renderFooter();
+    saveDraft(form);
+  } catch(e) {
+    console.error('render error:', e);
+    // Show fallback content so screen is never blank
+    var el = document.getElementById('content');
+    if (el && !el.innerHTML) {
+      el.innerHTML = '<div style="padding:20px;color:#ef4444;font-size:13px">読み込みエラー。ページを再読み込みしてください。<br><small>' + e.message + '</small></div>';
+    }
+  }
+}
+
+
+function renderProgress() {
+  const track = document.getElementById('progressTrack');
+  const nameEl = document.getElementById('stepName');
+  const countEl = document.getElementById('stepCount');
+  const pw = document.getElementById('progressWrap');
+
+  if (currentTab === 'records' || currentTab === 'ai') {
+    pw.style.display = 'none'; return;
+  }
+  pw.style.display = 'block';
+  track.innerHTML = STEPS.map((s, i) => {
+    const cls = i < step ? 'done' : i === step ? 'active' : '';
+    return `<div class="progress-seg ${cls}"></div>`;
+  }).join('');
+  nameEl.textContent = STEPS[step].icon + ' ' + STEPS[step].name;
+  countEl.textContent = `${step + 1} / ${STEPS.length}`;
+}
+
+function renderContent() {
+  const el = document.getElementById('content');
+  if (currentTab === 'records') { el.innerHTML = renderRecordsTab(); renderFooter(); return; }
+  if (currentTab === 'ai')      { el.innerHTML = renderAITab();      renderFooter(); return; }
+  el.innerHTML = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4, renderStep5][step]();
+  attachStepListeners();
+}
+
+function renderFooter() {
+  const el = document.getElementById('footer');
+  if (currentTab === 'records') { el.innerHTML = ''; return; }
+  if (step === 5) {
+    el.innerHTML = `
+      <button class="btn btn-back" onclick="goBack()">← 戻る</button>
+      <button class="btn btn-submit" onclick="submitForm()">✅ 提出する</button>`;
+    return;
+  }
+  el.innerHTML = `
+    ${step > 0 ? '<button class="btn btn-back" onclick="goBack()">← 戻る</button>' : ''}
+    <button class="btn btn-next" onclick="goNext()">次へ →</button>`;
+}
+
+// ─── STEP RENDERERS ───────────────────────────────────────────────
+function renderStep0() {
+  return `
+  <div class="card card-accent">
+    <div class="card-title"><span>📅</span> 日付・現場情報</div>
+    <div class="field row2">
+      <div>
+        <label>日付</label>
+        <input type="date" id="f_date" value="${form.date}">
+      </div>
+      <div style="width:70px">
+        <label>曜日</label>
+        <select id="f_day">${DAYS.map(d=>`<option ${form.dayOfWeek===d?'selected':''}>${d}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="field">
+      <label>会社名</label>
+      <input type="text" id="f_company" value="${esc(form.company)}" placeholder="会社名">
+    </div>
+    <div class="field">
+      <label>リーダー名</label>
+      <input type="text" id="f_leader" value="${esc(form.leader)}" placeholder="リーダーの名前">
+    </div>
+    <div class="field">
+      <label>確認者</label>
+      <input type="text" id="f_supervisor" value="${esc(form.supervisor)}" placeholder="確認者名">
+    </div>
+  </div>`;
+}
+
+function renderStep1() {
+  return `
+  <div class="card card-accent">
+    <div class="card-title"><span>🔨</span> 作業内容</div>
+    <div class="field">
+      <label>今日の作業内容</label>
+      <textarea id="f_workContent" placeholder="今日の作業内容を具体的に入力してください...">${esc(form.workContent)}</textarea>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span>💡</span> 今日のワンポイント</div>
+    <div class="field">
+      <textarea id="f_todayPoint" placeholder="安全のポイントやリーダーからの一言を入力..." style="min-height:70px">${esc(form.todayPoint)}</textarea>
+    </div>
+  </div>`;
+}
+
+function renderStep2() {
+  const infoBox = `<div class="info-box" style="margin-bottom:14px">
+    <strong>📐 評価基準</strong><br>
+    重篤度（A）× 可能性（B）= ★危険度<br>
+    危険度 <strong>15〜25：重</strong>　<strong>9：中</strong>　<strong>1〜5：低</strong><br>
+    危険度15以上は対策後に再評価してください
+  </div>`;
+  const aiSuggestBox = `<div class="card" style="margin-bottom:14px;background:linear-gradient(135deg,#eff6ff,#f0fdf4);border:1.5px solid #bfdbfe;">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:24px">🤖</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px">AI安全検索で危険ポイントを自動入力</div>
+        <div style="font-size:11px;color:var(--muted)">作業キーワードを検索して危険と対策をフォームに反映できます</div>
+      </div>
+      <button class="ai-step2-btn" onclick="openAISuggest()">🔍 AI検索</button>
+    </div>
+  </div>`;
+  const hazardCards = form.hazards.map((h, i) => {
+    const score = riskScore(h.severity, h.possibility);
+    const tag = riskTag(score);
+    const needsReeval = score && score >= 15;
+    const borderColor = tag ? (tag.cls.includes('high') ? '#ef4444' : tag.cls.includes('mid') ? '#f97316' : '#10b981') : '#e2e8f0';
+    return `
+    <div class="hazard-card" id="hcard_${i}" style="border-left-color:${borderColor}">
+      <div class="hazard-header">
+        <div class="hazard-num">⚠️ 危険ポイント ${i+1}</div>
+        ${tag && score ? `<span class="risk-badge ${tag.cls}">危険度 ${score} [${tag.label}]</span>` : ''}
+      </div>
+      <div class="field">
+        <label>どのような危険がありますか？</label>
+        <textarea id="h_point_${i}" placeholder="具体的な危険を記入..." style="min-height:70px">${esc(h.point)}</textarea>
+      </div>
+      <label>🔴 重篤度 (A) — 怪我の深刻さ</label>
+      <div class="score-group" style="margin-bottom:14px">
+        ${[1,3,5].map(v=>`
+          <button class="score-btn ${h.severity===v?scoreClass(v):''}" onclick="setHazard(${i},'severity',${v})">
+            <div class="score-val">${v}</div>
+            <div class="score-lbl">${SEV_LABELS[v]}</div>
+          </button>`).join('')}
+      </div>
+      <label>🟡 可能性 (B) — 発生の頻度</label>
+      <div class="score-group" style="margin-bottom:14px">
+        ${[1,3,5].map(v=>`
+          <button class="score-btn ${h.possibility===v?scoreClass(v):''}" onclick="setHazard(${i},'possibility',${v})">
+            <div class="score-val">${v}</div>
+            <div class="score-lbl">${POS_LABELS[v]}</div>
+          </button>`).join('')}
+      </div>
+      <div class="field">
+        <label>🛡️ 私たちはこうする！（対策）</label>
+        <textarea id="h_counter_${i}" placeholder="具体的な安全対策を記入..." style="min-height:70px">${esc(h.countermeasure)}</textarea>
+      </div>
+      ${needsReeval ? `
+      <div class="warn-box" style="margin-bottom:10px">⚠️ 危険度が15以上のため対策後の再評価が必要です</div>
+      <div class="field">
+        <label>★ 再評価スコア (A×B の再計算)</label>
+        <input type="number" id="h_reeval_${i}" min="1" max="25" placeholder="例：3" value="${h.reeval||''}">
+      </div>` : ''}
+    </div>`;
+  }).join('');
+  return aiSuggestBox + infoBox + hazardCards;
+}
+
+function renderStep3() {
+  return `
+  <div class="info-box" style="margin-bottom:14px">
+    ○ 良い　×悪い — ×の場合はリーダーに報告し、対応しなければ作業に従事できません
+  </div>
+  ${CHECKS_DEF.map(c => `
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-title"><span>${c.emoji}</span> ${c.label}</div>
+    <div class="yn-group">
+      <button class="yn-btn ${form.checks[c.key]==='good'?'yn-good':''}" onclick="setCheck('${c.key}','good')">○ 良い</button>
+      <button class="yn-btn ${form.checks[c.key]==='bad'?'yn-bad':''}" onclick="setCheck('${c.key}','bad')">× 悪い</button>
+    </div>
+  </div>`).join('')}`;
+}
+
+function renderStep4() {
+  return `
+  <div class="card card-accent" style="margin-bottom:14px">
+    <div class="card-title"><span>👷</span> 参加者サイン</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+      参加者全員の名前を入力してください。<br>
+      実際の現場では自筆サインも必要です。
+    </p>
+    <div class="participant-grid">
+      ${form.participants.map((p, i) => `
+      <div class="participant-slot">
+        <span class="participant-icon">👤</span>
+        <input type="text" id="p_${i}" value="${esc(p)}" placeholder="参加者 ${i+1}">
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function renderStep5() {
+  const activeP = form.participants.filter(Boolean);
+  const hazardSummaries = form.hazards.filter(h => h.point).map((h, i) => {
+    const score = riskScore(h.severity, h.possibility);
+    const tag = riskTag(score);
+    return `
+    <div class="hazard-card" style="margin-bottom:10px;${tag?'border-left-color:'+(tag.cls.includes('high')?'#ef4444':tag.cls.includes('mid')?'#f97316':'#10b981'):''}">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:6px">危険ポイント ${i+1}</div>
+      <div style="font-size:13px;margin-bottom:8px">${esc(h.point)}</div>
+      ${score ? `<span class="risk-badge ${tag.cls}" style="font-size:11px">危険度 ${score} [${tag.label}]</span>` : ''}
+      ${h.countermeasure ? `<div style="font-size:12px;color:var(--muted);margin-top:8px">対策: ${esc(h.countermeasure)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-title"><span>📋</span> 基本情報確認</div>
+    ${row('日付', form.date + '（' + form.dayOfWeek + '）')}
+    ${row('会社', form.company)}
+    ${row('リーダー', form.leader || '—')}
+    ${row('確認者', form.supervisor || '—')}
+    ${row('作業内容', form.workContent || '—')}
+    ${row('ワンポイント', form.todayPoint || '—')}
+  </div>
+  ${hazardSummaries}
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-title"><span>✅</span> 体調確認</div>
+    ${CHECKS_DEF.map(c => {
+      const v = form.checks[c.key];
+      const color = v === 'good' ? 'var(--safe)' : v === 'bad' ? 'var(--danger)' : 'var(--muted)';
+      const label = v === 'good' ? '○ 良い' : v === 'bad' ? '× 悪い' : '未回答';
+      return `<div class="summary-row"><span class="summary-key">${c.label}</span><span style="color:${color};font-weight:700">${label}</span></div>`;
+    }).join('')}
+  </div>
+  ${activeP.length ? `
+  <div class="card">
+    <div class="card-title"><span>👷</span> 参加者 (${activeP.length}名)</div>
+    ${activeP.map(p => `<div class="summary-row"><span>👤 ${esc(p)}</span></div>`).join('')}
+  </div>` : ''}`;
+}
+
+function row(k, v) {
+  return `<div class="summary-row"><span class="summary-key">${k}</span><span class="summary-val">${esc(v)}</span></div>`;
+}
+
+// ─── RECORDS TAB ─────────────────────────────────────────────────
+function renderRecordsTab() {
+  const records = getRecords();
+  if (!records.length) {
+    return `<div class="card" style="text-align:center;padding:40px 20px">
+      <div style="font-size:48px;margin-bottom:12px">📭</div>
+      <div style="font-weight:700;color:var(--muted)">記録がまだありません</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">KY活動を入力して提出すると<br>ここに記録されます</div>
+    </div>`;
+  }
+  return `
+  <button class="btn btn-download" onclick="exportAllRecords()" style="margin-bottom:14px">
+    ⬇️ 全記録をExcel出力（${records.length}件）
+  </button>
+  <div class="records-panel">
+    ${records.map(r => `
+    <div class="record-item" onclick="openModal(${r.id})">
+      <div>
+        <div class="record-date">📅 ${r.date}（${r.dayOfWeek}）</div>
+        <div class="record-meta">👷 ${r.leader||'—'}　参加者: ${r.participants.filter(Boolean).length}名　
+          危険ポイント: ${r.hazards.filter(h=>h.point).length}件</div>
+      </div>
+      <div class="record-arrow">›</div>
+    </div>`).join('')}
+  </div>`;
+}
+
+// ─── MODAL ───────────────────────────────────────────────────────
+function openModal(id) {
+  const records = getRecords();
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  selectedModalRecord = r;
+  const mc = document.getElementById('modalContent');
+  mc.innerHTML = buildRecordDetail(r);
+  document.getElementById('recordModal').style.display = 'flex';
+}
+function closeModal() {
+  document.getElementById('recordModal').style.display = 'none';
+  selectedModalRecord = null;
+}
+function buildRecordDetail(r) {
+  const rows = [
+    ['日付', r.date + '（' + (r.dayOfWeek||'') + '）'],
+    ['会社', r.company], ['リーダー', r.leader], ['確認者', r.supervisor],
+    ['作業内容', r.workContent], ['ワンポイント', r.todayPoint],
+  ];
+  return `
+    <div style="margin-bottom:14px">
+      ${rows.map(([k,v]) => `<div class="summary-row"><span class="summary-key">${k}</span><span class="summary-val">${esc(v||'—')}</span></div>`).join('')}
+    </div>
+    ${r.hazards.filter(h=>h.point).map((h,i) => {
+      const s = riskScore(h.severity, h.possibility);
+      const tag = riskTag(s);
+      return `<div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:8px">
+        <div style="font-weight:700;font-size:12px;margin-bottom:6px">危険ポイント ${i+1}</div>
+        <div style="font-size:13px;margin-bottom:6px">${esc(h.point)}</div>
+        ${s ? `<span class="risk-badge ${tag.cls}" style="font-size:11px">危険度 ${s} [${tag.label}]</span>` : ''}
+        ${h.countermeasure ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">対策: ${esc(h.countermeasure)}</div>` : ''}
+      </div>`;
+    }).join('')}`;
+}
+
+function exportSingleRecord() {
+  if (selectedModalRecord) exportToXLSX([selectedModalRecord]);
+}
+
+// ─── LISTENERS ───────────────────────────────────────────────────
+function attachStepListeners() {
+  const bind = (id, key) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', e => { form[key] = e.target.value; saveDraft(form); });
+  };
+  bind('f_date', 'date'); bind('f_day', 'dayOfWeek');
+  bind('f_company', 'company'); bind('f_leader', 'leader');
+  bind('f_supervisor', 'supervisor'); bind('f_workContent', 'workContent');
+  bind('f_todayPoint', 'todayPoint');
+  form.hazards.forEach((_, i) => {
+    const pt = document.getElementById(`h_point_${i}`);
+    const ct = document.getElementById(`h_counter_${i}`);
+    const rv = document.getElementById(`h_reeval_${i}`);
+    if (pt) pt.addEventListener('input', e => { form.hazards[i].point = e.target.value; saveDraft(form); });
+    if (ct) ct.addEventListener('input', e => { form.hazards[i].countermeasure = e.target.value; saveDraft(form); });
+    if (rv) rv.addEventListener('input', e => { form.hazards[i].reeval = parseInt(e.target.value)||null; saveDraft(form); });
+  });
+  form.participants.forEach((_, i) => {
+    const el = document.getElementById(`p_${i}`);
+    if (el) el.addEventListener('input', e => { form.participants[i] = e.target.value; saveDraft(form); });
+  });
+}
+
+function setHazard(i, key, val) {
+  form.hazards[i][key] = (form.hazards[i][key] === val) ? null : val;
+  // preserve textarea values before re-render
+  form.hazards.forEach((h, idx) => {
+    const pt = document.getElementById(`h_point_${idx}`);
+    const ct = document.getElementById(`h_counter_${idx}`);
+    if (pt) h.point = pt.value;
+    if (ct) h.countermeasure = ct.value;
+  });
+  render();
+}
+function setCheck(key, val) {
+  form.checks[key] = (form.checks[key] === val) ? null : val;
+  render();
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────
+function collectCurrentStep() {
+  if (step === 0) {
+    const d = v('f_date'), day = v('f_day'), co = v('f_company'),
+          le = v('f_leader'), su = v('f_supervisor');
+    if (d) form.date = d; if (day) form.dayOfWeek = day;
+    if (co !== null) form.company = co;
+    if (le !== null) form.leader = le;
+    if (su !== null) form.supervisor = su;
+  }
+  if (step === 1) {
+    const wc = v('f_workContent'), tp = v('f_todayPoint');
+    if (wc !== null) form.workContent = wc;
+    if (tp !== null) form.todayPoint = tp;
+  }
+  if (step === 2) {
+    form.hazards.forEach((h, i) => {
+      const pt = v(`h_point_${i}`), ct = v(`h_counter_${i}`), rv = v(`h_reeval_${i}`);
+      if (pt !== null) h.point = pt;
+      if (ct !== null) h.countermeasure = ct;
+      if (rv !== null) h.reeval = parseInt(rv) || null;
+    });
+  }
+  if (step === 4) {
+    form.participants.forEach((_, i) => {
+      const pv = v(`p_${i}`);
+      if (pv !== null) form.participants[i] = pv;
+    });
+  }
+}
+function v(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : null;
+}
+function goNext() {
+  collectCurrentStep();
+  if (step < STEPS.length - 1) { step++; render(); scrollTop(); }
+}
+function goBack() {
+  collectCurrentStep();
+  if (step > 0) { step--; render(); scrollTop(); }
+}
+function scrollTop() {
+  document.getElementById('content').scrollTop = 0;
+}
+
+function switchTab(t) {
+  currentTab = t;
+  document.getElementById('tabForm').className    = 'tab' + (t==='form'?    ' active':'');
+  document.getElementById('tabRecords').className = 'tab' + (t==='records'? ' active':'');
+  document.getElementById('tabAI').className      = 'tab' + (t==='ai'?      ' active':'');
+  renderProgress();
+  renderContent();
+}
+
+// ─── SUBMIT ──────────────────────────────────────────────────────
+function submitForm() {
+  collectCurrentStep();
+
+  // Show syncing state immediately
+  document.getElementById('content').innerHTML = `
+    <div class="success-screen">
+      <div class="success-icon" id="submitIcon" style="animation:none">⏳</div>
+      <div class="success-title" id="submitTitle">送信中...</div>
+      <div class="success-sub" id="submitSub">データを保存しています...</div>
+      <div id="submitActions" style="padding:0 16px;display:flex;flex-direction:column;gap:10px;margin-top:16px"></div>
+    </div>`;
+  document.getElementById('footer').innerHTML = '';
+  document.getElementById('progressWrap').style.display = 'none';
+
+  // Use promise chain instead of async/await for iOS Safari compatibility
+  submitAndSync(form).then(function(result) {
+    var icon    = document.getElementById('submitIcon');
+    var title   = document.getElementById('submitTitle');
+    var sub     = document.getElementById('submitSub');
+    var actions = document.getElementById('submitActions');
+    if (!icon || !title || !sub) return;
+
+    var pending = getPendingQueue();
+
+    if (result && result.synced) {
+      icon.textContent  = '🎉';
+      icon.style.animation = '';
+      title.textContent = '提出完了！';
+      sub.innerHTML = 'KY活動表を記録し、<strong style="color:var(--safe)">Googleスプレッドシートに送信しました</strong>。';
+    } else {
+      icon.textContent  = '💾';
+      icon.style.animation = '';
+      title.textContent = 'オフライン保存';
+      sub.innerHTML = '端末に保存しました。<br><span style="color:var(--accent)">オンライン復帰時に自動送信されます（待機' + pending.length + '件）</span>';
+    }
+
+    // Safely append action buttons
+    if (actions) {
+      actions.innerHTML = `
+        <button class="btn btn-download" onclick="exportCurrentRecord()">⬇️ Excelでダウンロード</button>
+        <button class="btn-new" onclick="startNew()">📝 新しいKY活動を開始</button>
+        <button class="btn-new" onclick="try{localStorage.removeItem('kyAuth');}catch(e){}window.location.href='index.html'" style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.2);color:#ef4444">
+          🔒 ログアウト
+        </button>`;
+    }
+
+    // Clear draft
+    try { localStorage.removeItem('kyDraft'); } catch(e) {}
+
+  }).catch(function(err) {
+    // Fallback if sync fails - still show success for local save
+    var icon  = document.getElementById('submitIcon');
+    var title = document.getElementById('submitTitle');
+    var sub   = document.getElementById('submitSub');
+    var actions = document.getElementById('submitActions');
+    if (icon)  { icon.textContent = '💾'; icon.style.animation = ''; }
+    if (title) title.textContent = '端末に保存しました';
+    if (sub)   sub.textContent = 'オフライン保存されました。';
+    if (actions) {
+      actions.innerHTML = `
+        <button class="btn btn-download" onclick="exportCurrentRecord()">⬇️ Excelでダウンロード</button>
+        <button class="btn-new" onclick="startNew()">📝 新しいKY活動を開始</button>`;
+    }
+    try { localStorage.removeItem('kyDraft'); } catch(e) {}
+  });
+}
+
+function exportCurrentRecord() {
+  const records = getRecords();
+  if (records.length) exportToXLSX([records[0]]);
+}
+
+function startNew() {
+  form = freshForm();
+  step = 0;
+  document.getElementById('progressWrap').style.display = 'block';
+  render();
+}
+
+// ─── EXCEL EXPORT — exact original format ────────────────────────
+
+// Convert "A1" → {r:0, c:0}  (0-based)
+function cellRef(addr) {
+  const m = addr.match(/^([A-Z]+)(\d+)$/);
+  const col = m[1].split('').reduce((acc,ch) => acc*26 + ch.charCodeAt(0)-64, 0) - 1;
+  return { r: parseInt(m[2]) - 1, c: col };
+}
+
+function makeCell(ws, addr, value, styleHint) {
+  const ref = cellRef(addr);
+  const key = XLSX.utils.encode_cell(ref);
+  const t = (typeof value === 'number') ? 'n' : 's';
+  ws[key] = { v: value, t, s: styleHint || {} };
+}
+
+function addMerge(ws, tl, br) {
+  if (!ws['!merges']) ws['!merges'] = [];
+  ws['!merges'].push({ s: cellRef(tl), e: cellRef(br) });
+}
+
+// Column letter from 1-based index
+function colLetter(n) {
+  let s = '';
+  while (n > 0) { s = String.fromCharCode(64 + (n % 26 || 26)) + s; n = Math.floor((n-1)/26); }
+  return s;
+}
+
+function buildKYSheet(data) {
+  const ws = {};
+
+  // Sheet range: A1:BE52
+  ws['!ref'] = 'A1:BE52';
+
+  // Row heights: all 20.1, row 52 = 18
+  ws['!rows'] = [];
+  for (let i = 0; i < 52; i++) ws['!rows'].push({ hpt: i === 51 ? 18 : 20.1 });
+
+  // Column width: A=4.375, others default
+  ws['!cols'] = [{ wpx: 33 }]; // Col A narrow
+
+  const merges = [];
+  const addM = (tl, br) => merges.push({ s: cellRef(tl), e: cellRef(br) });
+
+  // Helper to set cell
+  const C = (addr, val, style) => {
+    const ref = cellRef(addr);
+    const key = XLSX.utils.encode_cell(ref);
+    const t = (val === null || val === undefined || val === '') ? 's'
+             : (typeof val === 'number') ? 'n' : 's';
+    ws[key] = { v: (val !== null && val !== undefined) ? val : '', t, s: style || {} };
+  };
+
+  // ── Row 1-4: Title ───────────────────────────────────────────
+  const d = data.date || '';
+  let titleStr = '  　　月　　　日（　　）の危険予知活動表';
+  if (d) {
+    const parts = d.split('-');
+    if (parts.length === 3) {
+      const m = parseInt(parts[1]), dy = parseInt(parts[2]);
+      titleStr = `  　${m}月　　　${dy}日（${data.dayOfWeek||''}）の危険予知活動表`;
+    }
+  }
+  addM('A1','AM4');
+  C('A1', titleStr, { font:{name:'MS PGothic',sz:48}, alignment:{horizontal:'center',vertical:'center'} });
+
+  addM('AN1','BE2');
+  C('AN1', data.projectName || '林道南アルプス線（嘉助工区）改良工事（明許）',
+    { font:{name:'MS PGothic',sz:19}, alignment:{horizontal:'center',vertical:'center'} });
+
+  addM('AN3','BE4');
+  C('AN3', data.parentCompany || '湯澤工業株式会社',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+
+  // ── Row 5-6: Company / Leader / Supervisor ───────────────────
+  addM('A5','F6');  C('A5', '会社名',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+  addM('G5','U6');  C('G5', data.company||'',
+    { font:{name:'MS PGothic',sz:28}, alignment:{horizontal:'center',vertical:'center'} });
+  addM('V5','AA6'); C('V5', 'リーダー名',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+  addM('AB5','AM6'); C('AB5', data.leader||'',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+  addM('AN5','AR6'); C('AN5', '確認者',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+  addM('AS5','BE6'); C('AS5', data.supervisor||'',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+
+  // ── Row 7-8: Work content ────────────────────────────────────
+  addM('A7','F8');  C('A7', '作業内容',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+  addM('G7','BE8'); C('G7', data.workContent||'',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'left',vertical:'center',wrapText:true} });
+
+  // ── Row 9-12: Hazard table header ────────────────────────────
+  addM('A9','S12');
+  C('A9', '危険のポイント\n(どのような危険がありますか？)',
+    { font:{name:'MS PGothic',sz:26}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+  addM('T9','Y12');
+  C('T9', '重篤度\n(Ａ)\n○をつける',
+    { font:{name:'MS PGothic',sz:18}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+  addM('Z9','AE12');
+  C('Z9', '可能性\n(Ｂ)\n○をつける',
+    { font:{name:'MS PGothic',sz:18}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+  addM('AF9','AI12');
+  C('AF9', '★危険度\n(Ａ)×(Ｂ)\n数値記入',
+    { font:{name:'MS PGothic',sz:18}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+  addM('AJ9','BA12');
+  C('AJ9', '私たちはこうする！\n(具体的にできる対策を考える)',
+    { font:{name:'MS PGothic',sz:26}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+  addM('BB9','BE12');
+  C('BB9', '★再評価\n(Ａ）×(Ｂ）\n数値記入',
+    { font:{name:'MS PGothic',sz:18}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+
+  // ── Hazard rows ───────────────────────────────────────────────
+  const hazards = data.hazards || [{},{},{}];
+  const rowStarts = [13, 17, 21];
+  const sevCols   = [{l:'T',v:1},{l:'V',v:3},{l:'X',v:5}];
+  const posCols   = [{l:'Z',v:1},{l:'AB',v:3},{l:'AD',v:5}];
+
+  rowStarts.forEach((rs, idx) => {
+    const re = rs + 3;
+    const h  = hazards[idx] || {};
+    const sev = h.severity, pos = h.possibility;
+    const score = (sev && pos) ? sev * pos : null;
+
+    // Hazard point text — sz:20 matches original data cells
+    addM(`A${rs}`, `S${re}`);
+    C(`A${rs}`, h.point||'',
+      { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'left',vertical:'center',wrapText:true} });
+
+    // Severity buttons — sz:24 matches original (T13,V13,X13 = size 24)
+    sevCols.forEach(({l, v}) => {
+      const colIdx = l.split('').reduce((a,c)=>a*26+c.charCodeAt(0)-64,0);
+      const nextL  = colLetter(colIdx + 1);
+      addM(`${l}${rs}`, `${nextL}${re}`);
+      const isSelected = sev === v;
+      C(`${l}${rs}`, isSelected ? `（${v}）` : v,
+        { font:{name:'MS PGothic',sz:24,bold:isSelected},
+          alignment:{horizontal:'center',vertical:'center'} });
+    });
+
+    // Possibility buttons — sz:24 matches original (Z13,AB13,AD13 = size 24)
+    posCols.forEach(({l, v}) => {
+      const colIdx = l.split('').reduce((a,c)=>a*26+c.charCodeAt(0)-64,0);
+      const nextL  = colLetter(colIdx + 1);
+      addM(`${l}${rs}`, `${nextL}${re}`);
+      const isSelected = pos === v;
+      C(`${l}${rs}`, isSelected ? `（${v}）` : v,
+        { font:{name:'MS PGothic',sz:24,bold:isSelected},
+          alignment:{horizontal:'center',vertical:'center'} });
+    });
+
+    // Risk score — sz:24 consistent with score columns
+    addM(`AF${rs}`, `AI${re}`);
+    C(`AF${rs}`, score,
+      { font:{name:'MS PGothic',sz:24,bold:true}, alignment:{horizontal:'center',vertical:'center'} });
+
+    // Countermeasure — sz:20 matches original data cells
+    addM(`AJ${rs}`, `BA${re}`);
+    C(`AJ${rs}`, h.countermeasure||'',
+      { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'left',vertical:'center',wrapText:true} });
+
+    // Re-evaluation — sz:24 consistent with score columns
+    addM(`BB${rs}`, `BE${re}`);
+    C(`BB${rs}`, h.reeval||null,
+      { font:{name:'MS PGothic',sz:24,bold:true}, alignment:{horizontal:'center',vertical:'center'} });
+  });
+
+  // ── Row 25-27: Today's one-point ─────────────────────────────
+  addM('A25','S27');
+  C('A25', '今日のワンポイント',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+  addM('T25','AI27');
+  C('T25', data.todayPoint||'',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'left',vertical:'center',wrapText:true} });
+  addM('AJ25','BE27');
+  C('AJ25', '');
+
+  // ── Row 28-31: Scoring legend ─────────────────────────────────
+  addM('A28','BE31');
+  C('A28',
+    '(Ａ）怪我の重篤度　：　致命的5、重傷3、軽傷1　　　(Ｂ)怪我の可能性　：　よくある5、たまにある3、あまりない1　　　　★危険度(リスク)　：　15～25重、9中、1～5低\n※　危険度が15（重）以上の場合は、対策を考え実践したらどれだけ危険度が減少するかを再評価欄に計算して記入してください。',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+
+  // ── Row 32-39: Participant signatures ─────────────────────────
+  addM('A32','G39');
+  C('A32', '自筆サイン\n参加者',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+
+  const sigStartCols = [8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50];
+  const participants = data.participants || [];
+  sigStartCols.forEach((colN, i) => {
+    const l1 = colLetter(colN), l2 = colLetter(colN+1);
+    addM(`${l1}32`, `${l2}39`);
+    C(`${l1}32`, participants[i]||'',
+      { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+  });
+
+  // AZ32:BE51 — check/sign legend
+  addM('AZ32','BE51');
+  C('AZ32', '　良い○　　悪い×\n\n×の場合はリーダーに報告し、対応しなければ作業に従事できません　　　　\n',
+    { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center',wrapText:true} });
+
+  // ── Row 40-51: Health checks ──────────────────────────────────
+  const checkRows = [
+    {rs:40,re:42,label:'体調はいいか',   key:'condition'},
+    {rs:43,re:45,label:'服装はいいか',   key:'attire'},
+    {rs:46,re:48,label:'保護具の所持',   key:'ppe'},
+    {rs:49,re:51,label:'作業内容の把握', key:'workUnderstanding'},
+  ];
+  const checks = data.checks || {};
+
+  checkRows.forEach(({rs, re, label, key}) => {
+    addM(`A${rs}`,`G${re}`);
+    C(`A${rs}`, label,
+      { font:{name:'MS PGothic',sz:20}, alignment:{horizontal:'center',vertical:'center'} });
+
+    const val = checks[key];
+    const display = val === 'good' ? '○' : val === 'bad' ? '×' : '';
+    const color   = val === 'good' ? '0070C0' : val === 'bad' ? 'FF0000' : '000000';
+
+    sigStartCols.forEach(colN => {
+      const l1 = colLetter(colN), l2 = colLetter(colN+1);
+      addM(`${l1}${rs}`, `${l2}${re}`);
+      C(`${l1}${rs}`, display,
+        { font:{name:'MS PGothic',sz:20,bold:true,color:{rgb:color}},
+          alignment:{horizontal:'center',vertical:'center'} });
+    });
+  });
+
+  // ── Row 52: bottom border row ─────────────────────────────────
+  addM('A52','BE52');
+  C('A52', '');
+
+  ws['!merges'] = merges;
+  return ws;
+}
+
+function exportToXLSX(records) {
+  const wb = XLSX.utils.book_new();
+
+  records.forEach((r, idx) => {
+    const ws = buildKYSheet(r);
+    const dateStr  = (r.date || '').replace(/-/g,'');
+    const leader   = (r.leader || '記録').replace(/[\/\\?*\[\]:]/g,'');
+    let sheetName  = `${dateStr}_${leader}`.slice(0, 31);
+    // Ensure unique
+    const used = wb.SheetNames || [];
+    let base = sheetName, n = 1;
+    while (used.includes(sheetName)) { sheetName = `${base}_${n++}`.slice(0,31); }
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  const fileName = records.length === 1
+    ? `KY活動表_${records[0].date||'記録'}.xlsx`
+    : `KY活動表_集計_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+}
+
+function exportAllRecords() {
+  const records = getRecords();
+  if (!records.length) { alert('記録がありません'); return; }
+  exportToXLSX(records);
+}
+
+// ─── ESCAPE ──────────────────────────────────────────────────────
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+
+// ─── SAFETY KNOWLEDGE BASE ────────────────────────────────────────
+// Extracted from あんぜん newsletter PDF (283-310号)
+var SAFETY_CHUNKS = {
+  excavation: '信号機管路の確認不足・認識不足による切断事故が複数発生しています。信号機管路の切\n【信号機管路の切断事故事例】 車両用信号機\nの埋設管（NTT）の確認を行った。土被り120㎝にある埋設管\nで除去した際、土被り70㎝に埋設されていた引き込み管路の\nにも関わらず、配線に気を配らずに埋設管を切断したもので\n①現地踏査 ②配線・管路の状況を確認 （架空・地下） ③占用協議（回答）書\n★地下埋設物事故を防ぐには\n②試掘の検討（試掘を行い現場に位置と深さを明示）\n④全ての作業員への地下埋設物の周知徹底 を行いましょう。\n★台帳に未記載の地下埋設物を確認した場合は資料を作成し、台帳に反映させましょう。（発注者）\n1.地下埋設管及び敷設ケーブルに対する事故\n1.地下埋設管及び敷設ケーブルに対する事故 2.架空線に対する事故 3.高所作業箇所からの墜落事故\n地下埋設管及び 高所作業箇所からの\n発破の装薬作業中に爆発事故が発生 ​掘削時の車両移動中に死亡事故が発生\n【事故概要】 トンネル切羽部で装薬作業中、既に 【事故概要】 トンネル掘削作業中において、発破\n・公衆災害、特に地下埋設物事故と架空線事故の件数が増加\n①地下埋設管及び施設ケーブルに対する事故 ②架空線に対する事故 1 2 2 2 2 2\nからか、施工における事前確認の不足により埋設管の破損事故が発生しています。あせらずに十分な事前調査\n掘削作業において想定外の位置にあったNTT埋設管を破損\n深さ約2000㎜ 堀を進めていたが、NTT埋設ケーブル敷\n会ではケーブルは図の青ルートに埋設さ\n①地下埋設管及び敷設ケーブルに対する事故\n重機は整地、運搬、積込み、掘削、基礎工事、締固め、コンクリート打設、解体など、それ\n地下埋設管の事故が増えています！\n発生しており、中でも地下埋設管等の事故が約3割を占めている\n「地下埋設管等の事故」は、事前調査の実施、資料（台帳等）\n地下埋設管の事故事例\n事例① 思い込み・試掘未実施による事故\nル3本を切断した。 埋設シート\n図面等は後日提供となっていた。現地には、別のケーブル埋設標\n込み、試掘を行わずに建柱を実施した。\n受注者は、地下埋設管等の位置について、設計図書並びに監督職員が提示する\n埋設管位置は明示し、作業員全員が目視確認できるようにしましょう。\n施工場所等に応じた試掘を計画し、実施しましょう。\n【事故概要】中央分離帯の樹木移植の機械掘削作業中、重機で\n照明灯地下埋設配管を損傷した。\n【主な要因】事故当日のKY活動において、埋設管路周辺の掘削\n作業に対する作業員への注意喚起が不十分だった。 100㎝ 破損させた埋設管\n地下埋設物に近接した作業を行う際の作業手順、留意点について、全作業員に\n事例③事前協議・試掘未実施による事故\n【事故概要】排水構造物工の掘削作業中、地下配線の位置・深\n【事故原因】民地所有者や管理者と事前協議を行わず、試掘も 配管・配線\n施工場所等に応じた試掘を計画し、実施しましょう。\n中、堤防に埋設されていた水道管にバケットが接触し、破損\nのぼり旗等で埋設管箇所を明示しましょう。\n地下埋設に関わる事故防止に向けた特記仕様書の記載について\n（地下埋設物件等（架空線を含む）の事故防止）\n地下埋設管の事故は、台帳や竣工図面等の資料を十分に確認すれば回避できる可能性の高い事故\n地下埋設管及び 資材・仮設材及び\n12件に比べて倍増しています。内訳では、7項目のうち5項目（地下埋設管事故、架空線事故、\n多く発生した地下埋設管事故、架空線事故、資材・工具の飛来落下事故、重機との接触事故に\n第42 《26》 埋設物の事前確認 【下線部を拡充】 ※《 》中は建築編の場合\n２ 発注者又は施工者は、土木工事《建築工事等》を施工しようとするときは、施工に先立ち、埋設物の管理者等が\n保管する台帳と設計図面を照らし合わせて位置（平面・深さ）を確認したうえで、細心の注意のもとで試掘\n等を行い、その埋設物の種類、位置（平面・深さ）、規格、構造等を原則として目視により確認しなけれ\nばならない。ただし、埋設物管理者の保有する情報により当該項目の情報があらかじめ特定できる場合や、学会\n３ 発注者又は施工者は、試掘等によって埋設物を確認した場合においては、その位置（平面・深さ）や周辺地質の\n状況等の情報を埋設物の管理者等に報告しなければならない。この場合、深さについては、原則として標高\n４ 施工者は、工事施工中において、管理者の不明な埋設物を発見した場合、必要に応じて専門家の立ち会いを\n求め埋設物に関する調査を再度行い、安全を確認した後に措置しなければならない。\n(件) 架空線事故件数 架空線事故は例年、地下埋設物事故に次い\n歩道と工事現場が隣接 重機による掘削時、監\n①地下埋設管及び施設ケーブルに対する事故\n地下埋設物（①）の割合が高く、例年通りの傾向である。\n① 地下埋設管及び施設ケーブルに対する事故（継続）\n地下埋設管及び\n加傾向です。項目毎に見てみると、地下埋設物事故は依然として発生件数が多く、引き続き注意が必要です。また、\n地下埋設物事故や重機接触事故をおこさないために・・・\n重点対策7項目の中でも例年、地下埋設物事故は依然として発生件数の多く\n事故となっています。地下埋設物は、その名のとおり地上からは直接視認でき\nにあたっては試掘を含め、十分な注意が必要となります。\n地下埋設物事故防止のポイント\n①事前調査、試掘の実施\n・当該工事現場内の地下埋設物については、作業に先立ち図面や台帳等の照会を必ず行う。\n・作業に支障が生じる地下埋設物の存在が予想される箇所は立会依頼を必ず行うこと。\n・試掘等により地下埋設物の確認を目視で行うとともに、試掘にあたり必要に応じて探査機等による\n・埋設物付近の掘削作業は人力による先掘を実施するなど、チェックリスト等を用いて作業時の留意\n・工事関係者に埋設物位置を周知するため、目印表示等による埋設位置の明示を行い、作業員への周\n・埋設物近接箇所において、バックホウ等の建設機械による掘削作業を行う場合には、必要に応じ\nと比例し、28件（21%）から46件（29%）と18件（8ポイント）増加している状況です。中でも、地下埋設',
+  heat: '熱中症に注意\n建設業では屋外作業が多いことから、熱中症による死傷者が最も多く発生しています。昨年度近畿\n管内で建築工事やトンネル工事等現場で熱中症事故が8件発生しました。本格的な夏場を迎える前に、\n熱中症とは\n「熱中症」は、高温多湿な環境に長くいることで、徐々に体内の水分や塩分のバ\n熱中症が疑われる人を見かけたら\n国土交通省発注工事における熱中症対策について\n厳しい残暑が続きます 熱中症対策の徹底を\n屋外で直射日光にさらされる環境が多い建設工事の現場では、熱中症を発症する恐\n引き続き、熱中症に注意\n今年度は熱中症が多発しています。8月末ですでに11件発生しています。多くは早めの対応が功を奏し\nて重篤な症状には至っていませんが7月には熱中症を起因とした死亡事例も発生しています。\n熱中症は真夏日や日差しが強いときだけではなく、気温が低くても、湿度が高いと、汗が蒸発しにくく\nなり、熱中症への危険が高くなります。例年9月になっても熱中症が発生する危険度（リスク）\n環境省「熱中症予防情報サイト」より引用\n暑さ指数（ＷＢＧＴ） ほぼ安全 注意 警戒 厳重警戒 危険\n※暑さ指数【WBGT】（℃）：人体と外気との熱のやりとり（熱収支）に着目した熱中症予防のための指標。人体\nの熱収支に大きな影響を与える①湿度、②日射・輻射(ふくしゃ)など周辺の熱環境、③気温の３つを取り入れ\nなお、表示の値は、事故発生日における、事故発生近傍観測地点の最高値を示す。（引用：環境省「熱中症予\n倒れた。意識はあったが熱中症の疑いがあったため、救急車で病院に搬送\nしたところ、「熱中症」と診断され、大事をとり当日入院した。\n解剖の結果、熱中症による死亡と診断された。\n環境省「熱中症予防情報サイト」では、暑さ指数（ＷＢＧＴ）予測値・状況値の情報\n提供だけではなく、熱中症に関する様々な情報が紹介されています。\n熱中症対策として休憩室に温度・湿度計を設\n作業ペースや休憩のタイミングを決めてしまうことは危険です。作業員の心身状態の把握に\n休憩はこまめにとり、作業再開時には草刈り機に異常がないことを確認しましょう。\n熱中症にご注意を！\n熱中症とは 私たちは体内の熱を外気に放熱したり、汗をかいて蒸発させることで体\nなったりすることで熱中症になります ■ 年齢区分別救急搬送人員数 ■\n熱中症は誰でもなります\n熱中症による死亡者数において高齢者が占める割合が多いこ\nと。高齢者は重症化するケースが多いことから、熱中症は高 H25 7,367 23,062 27,828\n熱中症は真夏の炎天下という典型的な場面ばかりでなく、突 H28 6,548 18,150 25,228\n熱中症はいつでもだれでもかかる危険があります。正しい予 乳幼児：生後28日以上満7歳未満の者\n普段の生活から気をつけましょう 出典：平成29 年(5月から9月)の熱中症による救急搬送状況（総務省）\n暑くなった場合に注意が必要です。このような日は普段以上に水分補給や休憩を意識しましょう。\nサインを見逃さないようにしましょう ■ 熱中症の症状 ■\n熱中症は症状が軽い段階で治療することで重症化を防ぐこ めまい、たちくらみ、大量の汗、\n熱中症になったときは\n熱中症は急激に症状が悪化することがあ\n熱中症が疑われるときは涼しい場所へ避難しましょう。 ります。軽い症状であっても決して一人\n熱中症はその日の体調や体質、持病や服用中の薬によっても発\n熱中症の事を知りましょう\n熱中症の事を知り、対策方法やいざというときに素早い行動がとれるようにしましょう。\n（a）熱中症予防情報サイト（環境省）には、熱中症対策だけではなく、暑さ指数\nうち、1件は熱中症によるものです。本格的な夏を迎える前に今一度、作業環境の整備改善について\n熱中症にご注意を！\n近畿地方もようやく梅雨明け、本格的な夏を迎えると同時に、熱中症による事故が増加するシーズンと\nなりました。昨年度は近畿管内直轄工事において、熱中症による被害が11件発生し、うち1件は死亡事故\nの熱中症被害が半数を占めている状況です。今後も気温の高い日が続くため、十分な注意が必要です。\n■近畿管内直轄工事における熱中症の発生状況（２０１８～２０１９．７時点）\n幅広い年齢層で熱中症\n交通誘導員の熱中症が\n熱中症を 建設業は屋外作業が多く、ヘルメット等の安全対策装備により\n放熱しにくいため、熱中症のリスクが高まりがちです。熱中症対\n策用品の着用や、休憩所への熱中症対策用品設置は、対策として\n警戒値を超えた場合やそれに準ずる場合の対応（作業休止や休憩 熱中症予防\n熱中症予防・対策に対する 熱中症かな？と思ったら・・・\n熱中症の疑いがあるときは、以下のように対処しましょう。\n→熱中症対策として、「高温\n「熱中症予防」が含まれる\n●熱中症対策に係る\nを作成し、熱中症予防や対策に\n参考：熱中症予防情報サイト（環境省）\n※もらい事故、熱中症を除く。\n（R1.9月末時点暫定値。もらい事故、熱中症、事故外案件は除く。）\n(月別累計件数) ※もらい事故、熱中症を除く 例年、この時期は事故が多発します。\n事例① 労働安全衛生法第２９条第１項の違反による熱傷事故\n食事・休憩時における取り組み事例\nSTOP！ 熱中症\n～万全の対策を行い、作業中の熱中症被害ゼロを目指しましょう～\nないのが「熱中症」です。本格的な夏以外でも発症し、ちょっとした油断が命取りになるケースもあ\nるいは被害を最小限にとどめることができるのも「熱中症」の特徴です。\nまた、直轄工事においては昨年度から、熱中症対策費として、現場管理費の補正も導入されていま\nす。今期も万全の対策を行い、現場作業における熱中症被害ゼロを目指しましょう。\n熱中症の主な症状\n熱中症予防のポイント\n現場の暑さ指数（WBGT値）を計測するとともに、 作業員自ら、あるいは作業員同士が\nしょう。 WBGT値は、①湿度、②日 です。機会あるたびに、理解促進と\n高温・多湿で無風の状態は、熱中症リスクが高ま 通気性を確保したヘルメット、作業服、遮熱ベス\nります。大型扇風機、ドライミスト、遮光ネット ト等、熱中症対策を施した服装を活用しましょう。\n単独判断で持ち場を離れることが出来 熱中症が疑われるときは、軽い症状に見えても決\n少しでも熱中症が疑われる作業員を見 症状が改善しない場合や、反応が鈍い\nため、放熱の工夫、早めに、こまめな水分・塩分補給を心がけましょう。 環境省熱中症予防',
+  machinery: '現地に信号機があり、架空線で繋がっていない機器がある\n①事前調査の徹底 現地調査（機器へ繋がる架空線、ハンドホール等）及び書面（台帳、占用許可書等）を確認\n2.架空線に対する事故\n5. 重機の転倒・作業員等との接触事故\n6.吊り荷と作業員等との接触事故\n墜落事故・飛来事故、重機の転倒・作業員等との接触事故、吊り荷と作業員等との接触事故など\n4.資材・仮設材及び工具の飛来落下事故 5.重機の転倒・作業員等との接触事故 6.吊り荷と作業員等との接触事故\nバックホウ転倒\n故の多発し、除草機械との接触により死亡事故も発生したため、H28\n車両 1件 その他 車両 除草機は建設機械・重機と捉え着実な安全対策を講じましょう。\n③ 降雨により満水し、沈没又は、転倒するおそれのあるもの。\nが強風により車道側に転倒し、信号待ちのため\n停車していた車輌に接触した。事故発生時、最\n① 保安施設に注意 カラーコーンや看板などが転倒・飛散し接触の\n④ クレーンに注意 風圧を大きく受けるので、転倒の可能性があり\n⑤ 機械の設置場所に注意 地盤の緩みで機械が転倒する危険があります。地盤がしっかりとした\nクレーン作業には資格が必要ですが、玉掛け作業にも資格が必要です\nラックへ載せる作業の補助を行っていた。玉掛けワイヤーのかかり位置が悪く、\n玉掛け者が一度下ろした際に、ベルトロールを通していた横持ち用パイプと架\n置いてしまった事が原因です。玉掛け作業については有資格者が作業してい\n持ち上げた際、玉掛けワイヤー\n玉掛け作業責任者について ○玉掛け作業責任者を定めて、その指示に従ってください\n○玉掛け作業責任者は作業内容、役割分担を確認し、特に複数の\n作業を開始する前、玉掛け作業全般の責任者を選\n玉掛けが終わって荷を巻上げる場合はワイヤロープを緊張させた状態で玉掛け状態が良好か、玉掛用具が正しく掛\nて、地切りした後一旦停止し、荷の安定性、玉掛け方法に間違いがないか確認しましょう。\n○玉掛け状態が良好かどうか、確認しながらロープが張るまでは微速で巻上げを行いましょう\n○巻上げはつり荷が他の障害物に接触しないか等に注意し、つり荷の高さは、人の高さより高くし、原則として2mのと\n一般社団法人日本クレーン協会HPには、クレーン等の安全性を確保するための方法が多数紹介され\n厚生労働省「職場のあんぜんサイト」では、移動式クレーンによる玉掛け作業などのリスクアセスメ\n敷設ケーブルに対する事故 架空線事故 墜落事故 飛来落下による事故\n重機の転倒・接触事故 接触事故 除草作業における事故 重点対策項目発生件数\n草刈り機の接触事故が発生 チェーンソーの接触事故が発生\n接触し反動で跳ね上がり、 支えていた作業員の右手肘\n橋桁への重機接触で一時鉄道の運行に影響\nれる。草刈りをするのが望ましい。 業員が足を引っかけて転倒等の危険\nバックホウによる架空線事故が\nバックホウの使用による架空線の切断事故が多発しています。バックホウは、可動部分が多く、多様な作業\n架空線の認識不足により移動中に切断\n重機のオペレータは横断通信線を目視していたものの、それよ\nりも低い位置にあった別の配線に気づかず重機のブームを上げ\n架空線の防護処置を行わず切断\n工にあたって架空線の防護カバー設置要請を行っていなかった。\n【影響】 NTT架空線の切断により、近隣民家４件の不通\n架空線に注意！！\n重機の動線上における支障物件の事前確認と関係者への周知徹底を行いましょう。\n引込み線への注意喚起看板、架空線明示マークの設置など、防止対策を講じましょう。\n重機の移動の際には、誘導員を配置しましょう。\n重機を移動させる場合であっても、指定オペレーターが機械の操作を行いましょう。\n凍結による転倒やスリップ、降雪による視界不良が生じることがあります。路面状\n重機操作に伴う事故が発生しています！\nバックホウ等の重機作業において、作業員の不注意や不安全な操作により事故が発生しています。\nなかった。上部の視認不足に た。バックホウの用途外使用により不安全な操作を行っ\n①接触 落下防止ネット\n重機・機械使用における留意点\n重機のアーム・ブームやダンプの荷台等と架空線や橋梁桁との離隔の確認を確実に行いましょう。\n安全大会や安全教育訓練を通じ、重機・機械の操作に関する注意事項の周知・徹底を行いましょう。\n全ての作業について使用する重機・機械の能力・用途などを検討し、作業計画書を作成するようにしましょう。\n作業計画書を用いて、作業工程、重機・機械の適切な使用方法、作業者同士の合図方法を関係作業者に周\n規制外区域での重機による作業は危険であるため、作業前における作業区域の確認を徹底しましょう。\n（件数） 平成29年度工事等事故防止重点対策7項目 （件数） 平成29年度重機別工事事故発生件数\n⑤重機の転倒・作業員等との接触事故 ⑥吊り荷と作業員等との接触事故 4月 5月 6月 7月 8月 9月 10月 11月 12月 1月 2月 3月\n多発しました。8月は除草作業による事故、10月は架空線に関する事故が多発し、12月は年末というこ\n土砂搬出中に、信号柱への接触事故が発生！\n確認不足による車両接触事故が発生しました。十分な対策と確認を行い事故を未然に防ぎましょう。\n玉掛けワイヤーの破断事故が発生！\n玉掛けワイヤーが破断し、玉掛け作業者が負傷する事故が発生しました。\nエレベーターの改修工事でエレベーターシャフト内のエレベーターレール（約290㎏）を撤去中、玉掛けワイヤーが切れ、14階付近\n• 落下を防止するためワイヤーを掴もうとした玉 玉掛けワイヤー\n玉掛けワイヤー切断状況 被害状況\n玉掛け作業のポイントとして、荷の荷重、荷の重心、玉掛けの方法、\n不安定状況を確認した場合は、速やかにクレーン等の運転者に指示し、作\n玉掛け作業は用具を掛ける作業だけではなく、外す作業についても有資格\nけ技能講習の修了者」または「玉掛け特別教育の修了者」であること。 1階\n②架空線に対する事故\n⑤重機による施設及び作業員等との接触事故\n※施設とは公共施設及び第三者施設をいう。ただし架空線は2.に含む。\n※重機の転倒事故も含む。\n•平衡感覚の低下：平衡機能が低下し、ちょっとしたバランスの崩れで転倒・転落などの災害につ\n傾斜地は足が滑りやすく、体を左右に動かすことで重心が移動し、転倒や滑落の危険性があ\n転倒した場合に、刈刃が身体に触れ、負傷する危険があります。肩掛バンドを装着すると、\nがあります！ ●転倒しにくい荷姿での搬入について、資材メーカー\n重機・器具の適正利用について\n以外は、重機の用途外使用は禁止されています。\n重機・建設機械・器具などの設備は使用前に十分に点検し、異常が認められたもの、老朽化\n作業員に接触する危険性や、遠心力による荷の振れが大きくなる危険性があります。そのた\nめエンジンの回転速度を低速に調整するとともに、作業速度切り替え装置を有する重機に\n重機の運転操作や建設機械の操作には要件のある場合があります。有資格者であるかを確認\n使用する重機の能力を確認しましょう。能力以上の作業は危険です。\n現場で思いついた作業、時間調整のための作業などの予定外の作業は重機・器具の用途外使 オペレーター\n＜重機等の転倒や流出等への対応＞\n● 突風等による転倒事故及び急な河川の増水による流出事故等\n2019年度に入り、車両関連の事故が多く発生しています。車両同士の事故、車両の接触による構造\n１２ ５月３１日 近隣河川からの取水作業が完了した散水車が後進発進する際、約10m先で転倒していた原動機付自\n１５ ６月１３日 狭いＴ字路を左折する際、確認が不十分であったため、車両側面が置き石に接触した。\n１７ ６月２０日 トレーラーにて重機搬入中、車止め支柱とトレーラーが接触し、車止めが破損した。\n【事故概要】堤防川裏側の損傷箇所復旧のため、重機による表土はぎ施工\nすることとしていたものの、離隔は十分にあるとの重機オペ\n架空線 高所作業箇所\n重機による施設 特殊車両通行\n資材・工具の飛来落下事故、重機との接触事故、除草作業時の事故）が増加しています。\n事例① 重機による作業員との接触事故 安全レバー\n【事故概要】重機移動中、オペレータがエンジンを切らずにバッ\n【主な要因】当日の作業内容変更時に作業分担を明確に指示して バックホ',
+  fall: '3.高所作業箇所からの墜落事故\n※高所作業箇所とは法面・足場等安衛法に規定する高さ2ｍ以上の作業箇所\n17件 8 6件 足場\n② 高所に注意 地上では風が弱くても、高所では強風の場合があり\nます。安全帯を確実につけて作業しましょう。\n⑥ 強風の後に注意 足場等にズレや傾きが生じる恐れがあります。\n② 足場等における作業では作業点検表による点検を行いましょう。\nはぎを負傷した。足場の 休みになり、無資格者にチ\n墜落制止用器具が原則フルハーネス型に！\n建設業などの高所作業で使用される胴ベルト型安全帯は、墜落時に内臓の損傷や胸部などの圧迫によ\n全帯の名称や範囲と性能要件が見直されるとともに、特別教育が新設され、墜落による労働災害防止の\n１．「安全帯」が「墜落制止用器具」に名称変更されます。（労働安全衛生法施行令の改正）\n「安全帯」の名称が「墜落制止用器具」に改められます。\n「墜落制止用器具」として認められる器具は以下の通りです。\n②には墜落を制止する機能\n安全帯 墜落制止用器具\n① ①と③のみが「墜落制止用\n２．墜落制止用器具は「フルハーネス型」を使用することが原則となります。\n（労働安全衛生規則の改正、墜落制止用器具の安全な使用に関するガイドラインの策定）\n墜落制止用器具はフルハーネス型が原則となりま\nすが、フルハーネス型の着用者が墜落時に地面に到 墜落制止用器具\nとが困難なところにおいて、墜落制止用器具のうち\n経過措置（猶予期間） （出展：厚生労働省リーフレット（安全帯が「墜落\n現行法令に基づく安全帯の 使用可能（2022年1月1日まで）\n改正構造規格に基づく墜落 製造可能 製造・販売可能（2019年2月1日～）\n改正法令に基づく墜落制止 使用可能（2019年2月1日～）\n橋梁補修工事において、高架下の一般国道上で高所作業車を使用して足場仮設を実施。当該作業が早く終\nフルハーネス型墜落制止用器具に係る特別教育について\nいて作業床を設けることが困難なところでフルハーネス型墜落制止用器具を使用して業務を行う場\n厚生労働省の「墜落制止用器具に係る質疑応答集」より、条件等を以下に抜粋します。\nえる箇所で作業を行う場合には、フルハーネス型墜落制止用器具の使用が義務付けられます。\n高さ２m以上の箇所でフルハーネス型墜落制止用器具を着用して「通行」や「昇降」をするだけの場\nフルハーネス型墜落制止用器具の使用などに関して、十分な知識及び経験を有すると認められる者に\n条件 いて行う作業に6月 行う作業に6月以上 受講者または足場の組立\nII 墜落制止用器具に関する知識 省略可能 受講必要 受講必要\n目技 V 墜落制止用器具の使用方法等 省略可能 受講必要 受講必要\n参考文献：厚生労働省「墜落制止用器具に係る質疑応答集」（https://www.mhlw.go.jp/content/11302000/000406617.pdf）\n③高所作業箇所からの墜落事故 ④資材・仮設材及び工具の飛来落下による事故 1 1 1 1 1 1 1\nUAVの墜落事故が発生！\nUAVの墜落事故が発生しています。UAVは、ICT活用工事における測量や施工管理、調査、点検等で今\n電波塔 墜落地点 信障害（携帯電話の電波塔による電波干渉と思\n民地に墜落した。\n【ＰＲ】 日建連、建設工事における“墜落制止用器具”に係る『活用指針』を策定・公開\n一般社団法人日本建設業連合会（日建連）では、今般の労働安全衛生法令の改正により、労働者に使用させる安全帯は\nや「墜落制止用器具の安全な使用のためのガイドライン（厚生労働省）」で定められた事項を遵守し、適切な墜落災害防止対\n○建設工事における“墜落制止用器具（通称「安全帯」）”に係る『活用指針』－「胴ベルト型」・「フルハーネス型」安全帯の使用基準（推奨）－\n③高所作業箇所からの墜落事故\n※高所作業箇所とは法面・足場等安衛法に規定する高さ2ｍ以上の作業箇所\nどは固定しましょう。強風などにより足場が倒壊しないか確認しましょう。\nります。安定した作業姿勢を保てるように足場を確保しましょう。状況に応じて鎌などの手\nき作業に併せて、穴や凹凸など足場の状況を確認しておきましょう。足場が悪い場合は、鎌\n● 突風等による事故を防止するため、工事現場における足場、\n台風や強風、大雨などの悪天候の後は、足場の点検を必ず\nに対する事故 からの墜落事故\n事例③ 高所作業箇所からの墜落事故\n【事故概要】足場解体のため、先行して防音パネルの撤去作業を実施し\nていた際に一時的に外していた9段目足場の手摺を、被災\n者が8段目足場から再設置しようとしていたところ、8段 7段目の\n目足場の手摺りが外れて、約12m下の構台上に墜落した。\n防護構台（荷重及び外力に十分耐える構造のもの）を設置するものとする。なお、外部足場の外側より\n水平距離で２メートル以上の幅を有する防護構台を設けた場合は、第２３（外部足場に関する措置）の規定による\n３ 施工者は、前２項の措置に加え、資材の搬出入、組立て、足場の設置、解体時の材料、器具、工具等の上げ下ろ\n③高所作業であるにも関わらず、周囲に親綱等がなく、安全帯を引っ掛けるこ\n足場階段の出入り口から工事現場への侵入防止の事例\n147 倒事故、墜落・転落事故、路面凍結によるス\n凍結や積雪がある場合は、作業開始前に足場の安全を確認しましょう。\n想定外の突風が吹くことがあります。梯子や足場、看板など、しっかり\n事例② 作業手順遵守の確認不足による転落事故\n【事故概要】 簡易足場\n桟橋解体作業において、解体用簡易足場を設置した後、親\nとから、親綱を一旦取り外して簡易足場の移動を行い、 約3ｍ\n簡易足場設置時も親綱を取り外したまま作業をしていた。\n③施工計画やＫＹ活動において、墜落制止用器具使用の指\n③ 高所作業箇所からの墜落事故（継続）\n※高所作業とは法面・足場等安衛法に規定する高さ2ｍ以上の作業\n対する事故 に対する事故 からの墜落事故 による事故\n幸い、仮設転落防止柵の破損のみで、大事故には至りませんでした。しかしながら、木製矢',
+  mowing: '7.除草作業における事故\n7.除草作業における事故\n注）折れ線グラフは飛び石事故数を示す 『除草作業における事故』は、事故件数が減小したことから、H27年\n4 その他 4件 3件 がら遠隔操縦式草刈機に身体が挟まれる事故が発生しました。大型\n除草作業の事故に注意\n昨年度除草時の事故は13件発生しました。本年度はより一層の安全対策を講じ、発\n生件数を1件でも減らすように取り組みましょう。（除草作業については、平成30年\n度工事等事故防止重点対策項目です。） 重点：除草作業\nり等で先行除草するなどしておきましょう。\n●肩掛け式草刈機の刃の確認\n• 刈刃の回転にブレが無いか確認しましょう。 安全距離の確保\n除草作業について\n除草作業中は\n重点：除草作業\n肩掛式草刈機の注意点\nハンドガイド式草刈り機の注意点\n所から飛んだ事例もみられます。飛び石対策は確実に行いましょう。\n遠隔操作式草刈り機の注意点\n草刈機本体へ「点検時、エンジンを切れ!」等の注意ステッカーを貼りましょう。\n刈払機の注意事項が掲載されています。\n【事例１】堤防法面除草作業の翌日に民家\n作業は除草作業員１名、飛石防止ネット２\n重点：除草作業\n飛び石防止ネット\n【事例２】道路維持の除草作業（肩掛式草刈り機）で、遮音壁周辺を草刈り中、小石を飛ばし遮\n除草作業における事故防止については、平成30年5月（あんぜん第285号）に\n電動カッターだけでなく、チェンソーや肩掛式除草機を使用した作業においても、工事関係者が負傷する事\n​除草･伐採作業時の作業員被災事故が\n【事故概要】 路肩法面の除草中に、草刈り作 【事故概要】 線路沿いの雑木を伐採中に線路\n飛び石防止ネット支持者 付近を擦傷させた。当日予\n草刈り機・チェンソーの取扱時の注意点\n⑦除草作業における事故\n⑥除草作業における事故\n肩掛式草刈り機による除草作業について\n付けていても、飛び石などの事故が発生しており、飛散物を完全に防ぐことは出来ません。\n防護ネットを設置して飛び石対策を行いましょう。\n場合があります。草刈り作業員並びに防護作業員は必ず保護メガネ、\n作業前には 作業前には刈刃が正しく取り付けられ、締めつけられていることを確認 服装を！\n距離標、杭、ケーブルには目印をつけ、周囲を手刈り等で先行除草を行いましょう。\n（出典：独立行政法人国民生活センターＨＰ「草刈機使用で失明の危険」http://www.kokusen.go.jp/index.html ）\n肩掛け式草刈り機は気軽に扱えるためにその危険性を軽視してし\n（b）独立行政法人国民生活センターには「刈払機（草刈機）の使用中の事故にご注意くださ\nい ！ 」に草刈り機の危険性についてまとめられています。\n除草作業 重点対策項目（全体）の\n⑥ 除草作業における事故（継続）',
+  weather: '降雨に注意\n大雨、強風等の異常気象又は地震、水質事故、工事事故などが発生した場\n【大雨に対する措置（作業現場及び周辺の整備）】\n危険を察知した場合には、基準内にあっても気象の状況に応じて警戒・点検・作業中止等を実施し、安\n強風予測は認識していたが、固定状況の確認を\n気象情報に注意\n響はなくても、日本周辺の台風の動きにも注意が必要です。大雨や強風に対し、工事現場の安全を確\n保するとともに、第３者への被害拡大防止のため、注意報・警報の発令情報だけでなく、気象情報全\n⑤ 湾岸・河川に注意 強風により資機材が流出する可能性がありま\nす。強風が予想される場合は安全な場所に資機材を移動させま\n① 排水設備の点検を ゲリラ豪雨等では排水設備の許容量を超える恐れ があります。またゴミ等\n② 穴・段差の点検を 降雨により、バイクや自動車の事故の原因になります。\n④ 緩んだ斜面に注意 切土法面、盛土等は降雨で崩れやすくなります。\n⑥ 河川の増水に注意 増水により資機材が流出する可能性があります。大雨が予想される場合は\n⑦ 大雨の後は点検を 地盤の緩みで崩落、陥没等思わぬ危険があります。\n労働安全衛生法では、大雨等、悪天候後に再び作業を開始する際の設備等の\n突風による飛散事故が発生しました。強風の予報が出ていなくても突風によって工事関係機材が飛散す\n暴風警報・強風注意報の発表がない場合、これまでの対策を踏まえて十分な固定をし\nまた、強風注意報など気象警報が発令された際には、設置物の臨時点検を行うととも\n保安用具や機材などを厳重に固定し、強風対策を行いましょう。\n大雪等の悪天候のため、当該作業の実施について危険が予想されるときは、当該作業\n大雨や強風などによる影響がないか確認しましょう。飛散しそうな保安用具や看板、資材な\n（b）気象庁では高温注意情報を発表しており、HPでも確認できます。\n号改正以降初の台風も発生しています。台風は、梅雨前線の活動\n長時間に渡る降雨にも注意が必要です。\n● 大雨による土砂や濁水の流出を防止するため、特に施工途中\nあんぜん第299号（令和元年7月号）に悪天候時の点検ポイントを紹介しています。参考\n悪天候や視界不良時には昼間点灯を実施しましょう。こちらの存在を知ら',
+  traffic: '車両侵入防止対策\nもらい事故発生件数\n規制中の安全対策だけではなく、現場への移動の際にも十\n交通誘導員の安全対策について\n今年度は交通誘導員が被災するもらい事故は発生していませんが、引き続き第三者が運転する自動車\n• 交通誘導員が被災するもらい事故は夜間0時から3時に多く発生します。\n◆交通誘導における注意点\nペースを常に確保し、通行車両には背を向けないよう徹底しましょう。\n• 交通誘導員は、クッションドラム後方の歩道側に立って危険を感じた時に退避しやす\n• 停止線近くになっても一般車両が速度を落とさないような場合、危険を避けられる姿\n【事故概要】 交通規制内の工事用の安\n片側交互通行規制中の事故が多発しています。特に夜中（午前３時台）や夕方に多く発生しています。\n施設の撤去がほぼ終了し、規制の解除に向け、注意 停止位置に２台（大型トラック、乗用車）が停止し\n一般車両の規制区間への突っ込み事故に注意！\n道路規制中の工事はもらい事故と隣り合わせであることを作業員全員が留意し、作業を行いましょう。\n不注意により一般車両が突っ込んでくることを想定し、今一度対策の確認を行いましょう。\n一般車両が停止指示に従わず身の危険を感じた場合、交通誘導員は直ちに安全な場所に避難しましょう。\n道路法・道路交通法（特殊車両許可）に適合しているか等、事前確認を徹底しましょう。\n現場規制区域内への出入口の入口側と出口側でそれぞれ異なる文言（手合図）の事故防止看板を設\nた作業員が落下し、負傷した。作業員の独断により、予定外の作業となる規制区域外での作業を行ったことが\n②発信機器を搭載した車両など、事前現地調査では把握しきれないことも考えられることから、車両通行制限の\n誘導員や確認者が一度に複数台の車両に対応することのないよう、調整を行いましょう。\n⑦特殊車両通行許可等違反による事故\n必要に応じて誘導員を配置し、通行車両及び通行人の安全を確保するとともに、作業の安全\n物等の破損、車両の単独事故など、様々な事故が発生しており、その事故のほとんどが運転手の不注意\n１ ４月３日 除雪トラックにて凍結防止剤を散布していたところ、後方から一般車両に追突された。\n１９ ６月２９日 一般車両が工事現場の占用帯に進入し、安全施設を破損させた。\n※2019年4月～6月までに発生した車両関連の事故（もらい事故含む）\nとなっています。今年度においては、7月末時点で4件の被害が発生していますが、そのうち、交通誘導員\nし等、落下物の危険性を伴う場合においては、交通誘導警備員を配置し一般交通等の規制を行う等落下\n※1：総発生件数988件（平成27年4月1日～平成2年１月末日まで） ⑥特車車両通行許可違反による事故\n⑦ 特殊車両通行許可等違反による事故（継続）\n②誘導員の配置\n・路肩、法肩等危険な場所での建設機械作業や人と建設機械との共同作業となる場合には、誘導員を\n適正に配置するとともに、誘導方法、合図等を確認し、オペレータと誘導員が連携して人（作業員',
+  general: '平成29年度直轄工事等事故発生状況（速報値）\n平成25年度 年度別工事等事故発生件数（累計） 211\n平成26年度 月別工事等事故発生件数\n年度の開始直後は、ここ数年間の平均レベルで推移していましたが、夏季の発生件数が少なかったこともあ\n例年2月には、多くの事故が発生する傾向がありましたが、今年度はその傾向は見られませんでした。3月も作\n業員１人１人の安全に対する意識を高め、年間最小件数となるように、職場全体が一丸となって工事事故防止に\n今一度、現場及び周辺の点検と安全確認を確実に行いましょう\n協議(回答）書等を確認し、立会するなど十分な安全対策を実施して事故を防止しましょう。\n（あんぜん平成30年2月号 第282号の再掲）\n【事故概要】\n2018年1月10日事故発生。車道の拡幅に伴う交差点右折\n③施工計画・作業方法の検討\n建設業年度末労働災害防止強調月間\n実施期間：平成30年3月1日～3月31日\n主催：建設業労働災害防止協会\n建設業年度末労働災害防止強調月間は、厚生労働省ならびに国土交通省の後援のもと、工事の輻輳化\nや季節的な災害により増加する年度末の労働災害防止のために、上記の期間に実施致します。\n実施にあたっては、「建設業労働災害防止規程」および「平成29年度建設業労働災害防止対策実施事\n項」等を活用し、積極的に労働災害防止活動を実施してください。\n平成30 年度工事等事故防止重点対策項目を策定！\n4. 資材・仮設材及び工具の飛来落下による事故\nな影響を及ぼす恐れがある事故や、ひとたび発生すると重大事故に\n繋がる恐れがある事故について「工事等事故防止重点対策項目」と\n位置付け、重点的に事故防止に取り組んでいます。\n着実に成果の出ている項目もありますが、これらは重大事故につながる危険要因であるため、継続\nして重点対策項目とすることで事故防止に万全を期することとします。受発注者が一体となった取\n平成29年度工事等事故防止重点対策7項目における事故件数\n度に事故防止重点対策項目から除外されました。しかしH27年度の事\n8 その他 年度に重点対策項目に再策定されました。\n1件 今年度はH28年度の2倍近い事故が発生しました。搭乗式のハンド\n新規入場者とは、「新しく現場に入ってきた職員、作業員」のことです。4月は新規入場者が多くな\nることから、十分な安全教育と特別な配慮が必要です。\n●書類確認の徹底\n必要な書類の提出を求めるだけではなく、持病や怪我の有無の確認を行いましょう。持病や怪\n我の有無の確認は、危険リスクを事前に排除することができます。なお、プライバシーには配慮\nしながら実施してください。\n●安全教育の実施\n新規入場者の多くは現場の状況、危険箇所や現場のルールなどについて知識・情報が十分では\nありません。現場に入る前には事前に安全教育を行う必要があります。安全教育は各工事現場の\n新規入場者教育の実施内容\n① 作業所の安全衛生計画の内容（工事概要と作業所の方針）\n② 労働者が混在して作業を行う場所の状況\n③ 労働者に危険を生じる箇所の状況（危険有害箇所と立入禁止区域）\n④ 混在作業場所において行われる作業相互の関係\n⑤ 避難の方法\n⑥ 指揮命令系統\n⑦ 担当する作業内容と労働災害防止対策\n⑧ 安全衛生に関する規定\n厚生労働省策定「元方事業者による建設現場安全管理指針」（H7.4)\n現場はチームワーク作業のため、小さな作業でも合図や確認の声掛けが重要ですが、新規入場\nルールによって現場全員の安全が保たれていることを理解し、責任ある行動を行うよう周知徹\n早めの対策を講じましょう。\n風通しの良い日陰など、涼しい場所へ避難させる。 ①\n①露出させた皮膚に水をかけ、うちわや扇風機などであおぐことで体を冷やします\n②氷のうなどがあれば、それを首すじ、 脇の下、 大腿の付け根、股関節あたりに\nイラスト：農林水産省ＨＰ「農作業安全研修資料等」を利用して作成\n飛散防止装置\n※虫刺され、草まけ、トゲ刺し等の防止のため、\n●作業場の状況を確認\n• 作業範囲の清掃、石など危険なものは撤去しましょう。\n• 刃に損傷などないか確認しましょう。\n• 刃にガタツキはありませんか、ガタツキがあると切れにくく、危険です。\n閉状態）の確認をします。手動チョークの場合はエンジン始動後の戻し忘れ\nに注意します。\n• エンジンをかける前に周囲に人や物、可燃物がないか確認します。\nが地面や障害物に触れていない事を確認してください。\n作業に集中すると周囲への注意が散漫になります。作業範囲、順序などを十分に\n転が止まってから除去しましょう。 エンジンをかけたまま除去しては危険です。\n履帯付近への足の踏み外し対策を行いましょう。\n突発的な不具合が発生した場合は、２人以上で確認しましょう。\n点検時は必ずエンジンを停止して行いましょう。動作確認時は、2ｍ程度の離隔\n突発的な不具合が発生した場合は、２人以上で確認しましょう。\n①農林水産省のＨＰ、②独立行政法人国民生活センターのＨＰには ① ②\n①http://www.maff.go.jp/j/seisan/sien/sizai/s_kikaika/anzen/index.html\n② http://www.kokusen.go.jp/news/data/n-20130704_1.html\n平成29年度直轄事故発生状況について\n平成29年度の工事等事故発生件数は123件であり、平成28年度より29件減少\nしかしながら工事等事故防止重点対策項目に該当する事故は32件(21%)から47件(38%)と15\nまた、死亡事故についても1件発生しており、引き続き注意が必要です。\n近年、工事の発注について平準化が取り組まれており、工事等事故も毎月平均的に発生し\nています。現場が動いている限り、事故はいつでも発生する可能性がありますので、作業中は\n常に注意を払い「事故ゼロ」を目指し、安全対策強化に努めるよう、心がけてください。\n梅雨の季節です。河川・砂防工事だけではなく道路維持・建築工事においても事前に現場を確認し、\n安全対策を講じてください。\n◇連絡系統の確認\n合に対する組織体制及び連絡系統を確認しましょう。\n外のようす 注意すること\n(1) 作業現場及び周辺の状況を点検確認し、次のような防災上必要な箇所は対策を講ずるとともに、\n① 土砂崩れ、がけ崩れ、地すべりが予想される箇所及び土石流の到達が予想される箇所\n② 物の流出、土砂の流出箇所\n④ 河川の氾濫等により浸水のおそれのある箇所 （土木工事安全施工技術指針 第２章第７節４項）\n【事例１】標識コンクリートの基礎養生において、\n歩行者安全確保のため設置した工事用フェンス\n【事例２】クッションドラム１基が突風により車道に転がり、国\nぶ恐れがありますので、特に注意が必要です。\n般に注意を払い、事前の対策を十分にとっておきましょう。\n危険があります。重りやロープでくくりつけ飛ばないようにしま\n③ 火花に注意 溶接時の火花が風に乗って飛散し火災の原因になり\nしっかりと確認しましょう。\n⑦ 点検は複数で 点検途中で事故にあった場合、単独では連絡が取\n③ 濡れた通路に注意 濡れた覆工板は滑りやすくなります。手すりや保護具をつけて作業しまし\n危険個所がないか点検しましょう。\n安全な場所に資機材を移動させましょう。\n① 現場巡視点検（点検は複数で行いましょう）\n③ 不良箇所には補修・補強をしておきましょう。\n※被害・異常を確認したときは、工事監督員（発注者）に速やかに報告を行っ\nり人命にも関わる場合もあります。事故防止対策を確実に実施し、事故発生\nを防止しましょう。\n事故概要 －道路改良工事－\nを１人で実施していた。\nに右足を損傷した。救急搬送したが死亡を確認。 ノコ切断作業時\n考えられる事故原因は、携帯用丸のこの安全装置\n昨年度も電動カッターを扱う作業で、手を切創する事故が発生しています。\n故も複数発生しております。少しの気の緩みで大きな事故を招くことがあります。各現場におかれましては今\n一度、作業手順及び機械の取扱説明書を熟読し、安全に作業を行うよう心がけてください。\n躇せずに医療機関の診察を受けることが重要であり、朝礼時に個々の作業員の健康状\n態を確認するようにしましょう。詳しくはあんぜん５月号を参考にしてください。\nお盆時の注意点について\n●子',
+};
+
+
+// ─── AI CHAT STATE ──────────────────────────────────────────────
+var aiMessages = [];   // {role:'bot'|'user', text:string}
+var aiTyping   = false;
+var lastAIDangers  = [];
+var lastAIMeasures = [];
+
+// Topic detector → pick relevant chunk
+function detectTopic(msg) {
+  var m = msg.toLowerCase();
+  if (/掘削|埋設|地下|試掘|管路/.test(m))         return 'excavation';
+  if (/熱中症|暑|wbgt|水分|休憩/.test(m))          return 'heat';
+  if (/重機|バックホウ|クレーン|玉掛|架空線/.test(m)) return 'machinery';
+  if (/墜落|足場|高所|ハーネス|安全帯/.test(m))      return 'fall';
+  if (/除草|草刈|刈刃|飛び石/.test(m))              return 'mowing';
+  if (/雨|風|台風|悪天候|気象/.test(m))             return 'weather';
+  if (/交通|誘導|規制|もらい/.test(m))              return 'traffic';
+  return 'general';
+}
+
+// ─── AI TAB RENDERER ─────────────────────────────────────────────
+function renderAITab() {
+  var chips = ['掘削作業','熱中症','架空線','バックホウ','足場','玉掛け','除草作業','高所作業','交通誘導','悪天候'];
+  var chipsHtml = chips.map(function(c) {
+    return '<button class="ai-chip" onclick="sendAIMessage(' + JSON.stringify(c) + ')">' + c + '</button>';
+  }).join('');
+
+  var messagesHtml = '';
+  if (aiMessages.length === 0) {
+    messagesHtml = '<div style="text-align:center;padding:30px 10px">' +
+      '<div style="font-size:40px;margin-bottom:10px">🤖</div>' +
+      '<div style="font-weight:800;color:var(--navy);margin-bottom:6px">AI安全アシスタント</div>' +
+      '<div style="font-size:12px;color:var(--muted);line-height:1.7">作業内容を入力すると<br>近畿地整あんぜん資料に基づく<br>危険ポイントと対策を回答します</div>' +
+    '</div>';
+  } else {
+    messagesHtml = aiMessages.map(function(m) {
+      var avatar = m.role === 'bot' ? '🤖' : '👷';
+      return '<div class="ai-msg ' + m.role + '">' +
+        '<div class="ai-msg-avatar">' + avatar + '</div>' +
+        '<div class="ai-msg-bubble">' + m.html + '</div>' +
+      '</div>';
+    }).join('');
+    if (aiTyping) {
+      messagesHtml += '<div class="ai-msg bot">' +
+        '<div class="ai-msg-avatar">🤖</div>' +
+        '<div class="ai-msg-bubble"><div class="ai-typing">' +
+        '<span></span><span></span><span></span></div></div></div>';
+    }
+  }
+
+  var fillBanner = (lastAIDangers.length > 0) ?
+    '<div class="ai-fill-banner" onclick="fillHazardFromAI()">' +
+      '<div class="ai-fill-banner-text">💡 ' + lastAIDangers.length + '件の危険ポイントをKYフォームに反映できます</div>' +
+      '<button class="ai-fill-banner-btn">反映する</button>' +
+    '</div>' : '';
+
+  return '<div class="ai-wrap">' +
+    '<div class="ai-chat-header">' +
+      '<div class="ai-chat-header-icon">🤖</div>' +
+      '<div><div class="ai-chat-header-title">AI安全アシスタント</div>' +
+      '<div class="ai-chat-header-sub">あんぜん資料（近畿地整 第283〜310号）参照</div></div>' +
+    '</div>' +
+    '<div class="ai-chips">' + chipsHtml + '</div>' +
+    '<div class="ai-messages" id="aiMessages">' + messagesHtml + '</div>' +
+    fillBanner +
+    '<div class="ai-input-row">' +
+      '<input type="text" id="aiInput" placeholder="例：掘削作業の危険は？" ' +
+        'onkeydown="if(event.key===\'Enter\')sendAIMessage()">' +
+      '<button class="ai-send-btn" id="aiSendBtn" onclick="sendAIMessage()" ' +
+        (aiTyping ? 'disabled' : '') + '>📤</button>' +
+    '</div>' +
+  '</div>';
+}
+
+// ─── SEND MESSAGE ─────────────────────────────────────────────────
+function sendAIMessage(preset) {
+  var input = document.getElementById('aiInput');
+  var msg   = preset || (input ? input.value.trim() : '');
+  if (!msg || aiTyping) return;
+  if (input) input.value = '';
+
+  // Add user message
+  aiMessages.push({ role:'user', html: esc(msg) });
+  aiTyping = true;
+
+  // Re-render
+  var el = document.getElementById('content');
+  if (el) { el.innerHTML = renderAITab(); scrollAIMessages(); }
+
+  // Pick relevant context chunk
+  var topic   = detectTopic(msg);
+  var context = SAFETY_CHUNKS[topic] || SAFETY_CHUNKS['general'] || '';
+
+  var systemPrompt =
+    'あなたは日本の建設工事現場の安全管理専門家です。' +
+    '近畿地方整備局が発行した「あんぜん」安全情報誌（第283号〜310号）の内容に基づいて回答してください。' +
+    '以下の資料抜粋を参考にしてください:\n\n' + context + '\n\n' +
+    '回答形式：\n' +
+    '1. ⚠️危険ポイントを箇条書き（最大4つ）\n' +
+    '2. ✅対策・注意事項を箇条書き（最大4つ）\n' +
+    '3. 最後に必ず以下のJSONを出力（フォーム反映用）:\n' +
+    'FILL_DATA:{"dangers":["危険1","危険2"],"measures":["対策1","対策2"]}\n\n' +
+    '日本語で簡潔に回答してください。';
+
+  // Route through Google Apps Script proxy to avoid CORS
+  fetch(GOOGLE_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type: 'ai_chat',
+      system: systemPrompt,
+      message: msg
+    })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var raw = '';
+    if (data.status === 'ok') raw = data.response || '';
+    else raw = 'エラー: ' + (data.message || '不明なエラー');
+
+    // Extract FILL_DATA JSON if present
+    var fillMatch = raw.match(/FILL_DATA:\{[^}]+\}/);
+    if (fillMatch) {
+      try {
+        var fd = JSON.parse(fillMatch[0].replace('FILL_DATA:', ''));
+        lastAIDangers  = fd.dangers  || [];
+        lastAIMeasures = fd.measures || [];
+      } catch(e) {}
+      raw = raw.replace(/FILL_DATA:\{[^}]+\}/, '').trim();
+    }
+
+    // Format the response as HTML
+    var html = formatAIResponse(raw);
+    aiMessages.push({ role:'bot', html: html });
+    aiTyping = false;
+
+    var el2 = document.getElementById('content');
+    if (el2) { el2.innerHTML = renderAITab(); scrollAIMessages(); }
+  })
+  .catch(function(err) {
+    aiMessages.push({ role:'bot', html: '<span style="color:var(--danger)">⚠️ エラー: ' + esc(err.message) + '</span>' });
+    aiTyping = false;
+    var el2 = document.getElementById('content');
+    if (el2) { el2.innerHTML = renderAITab(); scrollAIMessages(); }
+  });
+}
+
+function formatAIResponse(text) {
+  // Convert markdown-style to HTML
+  var lines = text.split('\n');
+  var html = [];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) { html.push('<br>'); continue; }
+    // Bold **text**
+    line = line.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    // Danger markers
+    if (/^[⚠️・•\-]|^\d+\./.test(line) && (line.indexOf('危険') >= 0 || line.indexOf('事故') >= 0 || line.indexOf('リスク') >= 0)) {
+      html.push('<li><span class="warn">' + line.replace(/^[⚠️・•\-\d\. ]+/, '') + '</span></li>');
+    } else if (/^[✅・•\-]|^\d+\./.test(line) && (line.indexOf('対策') >= 0 || line.indexOf('確認') >= 0 || line.indexOf('徹底') >= 0 || line.indexOf('しましょう') >= 0)) {
+      html.push('<li><span class="safe">' + line.replace(/^[✅・•\-\d\. ]+/, '') + '</span></li>');
+    } else if (line.startsWith('⚠️') || line.startsWith('1. ⚠') || line === '⚠️危険ポイント' || line.includes('危険ポイント')) {
+      html.push('<strong style="color:var(--danger)">' + line + '</strong><ul>');
+    } else if (line.startsWith('✅') || line === '✅対策' || line.includes('対策・注意')) {
+      html.push('</ul><strong style="color:var(--safe)">' + line + '</strong><ul>');
+    } else {
+      html.push(line);
+    }
+  }
+  return html.join('') + '</ul>';
+}
+
+function scrollAIMessages() {
+  setTimeout(function() {
+    var el = document.getElementById('aiMessages');
+    if (el) el.scrollTop = el.scrollHeight;
+  }, 50);
+}
+
+// ─── FILL KY FORM FROM AI RESULT ─────────────────────────────────
+function fillHazardFromAI() {
+  if (!lastAIDangers.length) return;
+  form.hazards.forEach(function(h, i) {
+    if (i < lastAIDangers.length  && lastAIDangers[i])  h.point           = lastAIDangers[i];
+    if (i < lastAIMeasures.length && lastAIMeasures[i]) h.countermeasure  = lastAIMeasures[i];
+  });
+  saveDraft(form);
+  step = 2;
+  switchTab('form');
+  showToast('✅ ' + Math.min(lastAIDangers.length, 3) + '件の危険ポイントをKYフォームに反映しました');
+}
+
+// ─── AI BUTTON IN STEP 2 ──────────────────────────────────────────
+function openAISuggest() {
+  if (form.workContent) {
+    setTimeout(function() { sendAIMessage(form.workContent.substring(0, 30) + 'の危険ポイントを教えてください'); }, 100);
+  }
+  switchTab('ai');
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────
+function showToast(msg) {
+  var t = document.getElementById('kyToast');
+  if (t) t.remove();
+  var toast = document.createElement('div');
+  toast.id = 'kyToast';
+  toast.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);' +
+    'background:#1e293b;color:#fff;padding:10px 20px;border-radius:24px;font-size:13px;' +
+    'font-weight:700;z-index:9999;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.3);' +
+    'font-family:Noto Sans JP,sans-serif;max-width:90vw;text-align:center;';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(function() { if (toast.parentNode) toast.remove(); }, 3000);
+}
+
+// ─── SERVICE WORKER ───────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js')
+    .then(reg => console.log('SW registered:', reg.scope))
+    .catch(err => console.log('SW registration failed:', err));
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────
+(function init() {
+  const draft = loadDraft();
+  if (draft) {
+    // Merge draft carefully
+    form = { ...freshForm(), ...draft };
+    form.hazards = (draft.hazards || []).map(h => ({ ...{point:'',severity:null,possibility:null,countermeasure:'',reeval:null}, ...h }));
+    form.checks = { ...freshForm().checks, ...(draft.checks || {}) };
+    form.participants = draft.participants || freshForm().participants;
+  }
+  render();
+})();
+</script>
+</body>
+</html>
