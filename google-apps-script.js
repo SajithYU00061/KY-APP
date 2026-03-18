@@ -14,7 +14,7 @@
  */
 
 // ── CONFIG ────────────────────────────────────────────────────────
-const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE'; // ← Change this!
+const SPREADSHEET_ID = '1kujFwgFG1jAbTcwJucqm8ZLG3J_jPo_BXhDAQz8gIFhSukErZj8NlfeM'; // ← Change this!
 const SHEET_NAME     = 'KY記録';                    // Sheet tab name
 // ──────────────────────────────────────────────────────────────────
 
